@@ -121,7 +121,8 @@ int main() {
 
   solution_t experiment({{"Warszawa", 52.2330269, 20.7810081},
                          {"Gdansk", 54.3612063, 18.5499431},
-                         {"Bydgoszcz", 53.1169002, 17.9008963}});
-
+                         {"Bydgoszcz", 53.1169002, 17.9008963},
+                         {"Poznan", 52.456009, 16.896973}
+                         });
   cout << experiment.goal() / 1000.0 << endl;
 }
