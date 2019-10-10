@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -5,9 +6,10 @@
 #include <numeric>
 #include <string>
 #include <vector>
-#include <algorithm> 
 
 #include "json.hpp"
+
+#include "skel.cpp"
 
 /**
  * @brief class representing single city on the map
@@ -124,7 +126,7 @@ std::ostream &operator<<(std::ostream &s, const solution_t &sol) {
   s << "{\"cities\":[" << std::endl;
   int i = 0;
   for (auto city : sol.cities_to_see) {
-    s << ((i++)?",":"") << "[\"" << sol.problem->cities[city].name << "\",";
+    s << ((i++) ? "," : "") << "[\"" << sol.problem->cities[city].name << "\",";
     s << sol.problem->cities[city].longitude << ",";
     s << sol.problem->cities[city].latitude << "]" << std::endl;
   }
@@ -145,18 +147,15 @@ std::istream &operator>>(std::istream &s, solution_t &sol) {
   return s;
 }
 
-
-solution_t brute_force_find_solution (solution_t problem) {
+solution_t brute_force_find_solution(solution_t problem) {
   using namespace std;
   solution_t best = problem;
   do {
     if (best.goal() > problem.goal()) {
       best = problem;
     }
-  }while (next_permutation(
-    problem.cities_to_see.begin(),
-    problem.cities_to_see.end()
-  ));
+  } while (next_permutation(problem.cities_to_see.begin(),
+                            problem.cities_to_see.end()));
   return best;
 }
 
@@ -183,4 +182,18 @@ int main(int argc, char **argv) {
   } else {
     cout << experiment << endl;
   }
+
+  std::ofstream htmlout("vis.html");
+  htmlout << html_header;
+  htmlout << "[";
+  htmlout << experiment.problem->cities.back().longitude << ",";
+  htmlout << experiment.problem->cities.back().latitude << "]" << std::endl;
+
+  for (auto city : experiment.cities_to_see) {
+    htmlout << ",[";
+    htmlout << experiment.problem->cities[city].longitude << ",";
+    htmlout << experiment.problem->cities[city].latitude << "]" << std::endl;
+  }
+  htmlout << html_footer;
+  htmlout.close();
 }
