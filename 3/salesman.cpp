@@ -1,3 +1,21 @@
+/**
+ * @file salesman.cpp
+ * @author Tadeusz Puźniakowski (pantadeusz@pjwstk.edu.pl)
+ * @brief The example of TSP problem and solution
+ * @version 0.1
+ * @date 2019-10-15
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ * 
+ * Compilation:
+ * g++ -std=c++17 salesman.cpp -o salesman -O3
+ * Run:
+ * ./salesman ./input.json wyniki.json 
+ */
+
+
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -9,7 +27,7 @@
 
 #include "json.hpp"
 
-#include "skel.cpp"
+#include "salesman_html_skel.cpp"
 
 /**
  * @brief class representing single city on the map
@@ -51,9 +69,6 @@ class problem_t {
 public:
   /**
    * @brief list of the cities to visit.
-   *
-   * This is the default order - [1,2,3, ...].
-
    */
   std::vector<city_t> cities;
 };
@@ -91,6 +106,14 @@ public:
   };
 
   /**
+   * @brief Construct a new empty solution_t object
+   *
+   * @param input_cities the cities list.
+   */
+  solution_t()
+      : problem(std::make_shared<problem_t>(problem_t{std::vector<city_t>()})),
+        cities_to_see(0){};
+  /**
    * @brief Construct a new solution t object
    * It takes shared pointer to the problem definition. This way we don't have
    * to copy the problem, only smartpointer to it.
@@ -120,20 +143,63 @@ public:
     }
     return sum;
   };
+
+  /**
+   * @brief generates next possible solution
+   *
+   * @return problem_t the new solution to the problem
+   */
+  solution_t next_solution() const {
+    auto p = *this;
+    std::next_permutation(p.cities_to_see.begin() + 1, p.cities_to_see.end());
+    return p;
+  };
+
+  /**
+   * @brief This operator allows for checking if the solutions are the same and
+   * the problem is the same
+   *
+   * @param other
+   * @return true
+   * @return false
+   */
+  bool operator==(const solution_t &other) const {
+    if (this->problem != other.problem) // is the problem the same (pointers the same)
+      return false;
+    if (other.cities_to_see.size() != cities_to_see.size()) // do we have same number of cities
+      throw std::invalid_argument("cities count must be the same - problem in solution! check initializers and data consistency");
+    for (int i = 0; i < cities_to_see.size(); i++) { // check the cities order
+      if (other.cities_to_see[i] != cities_to_see[i])
+        return false;
+    }
+    return true;
+  }
 };
 
+/**
+ * @brief prints solution to output stream
+ *
+ * overrides the << operator, so you can write ```cout << solution```
+ */
 std::ostream &operator<<(std::ostream &s, const solution_t &sol) {
-  s << "{\"cities\":[" << std::endl;
-  int i = 0;
+  using namespace nlohmann;
+  json j;
+  j["cities"] = json::array();
   for (auto city : sol.cities_to_see) {
-    s << ((i++) ? "," : "") << "[\"" << sol.problem->cities[city].name << "\",";
-    s << sol.problem->cities[city].longitude << ",";
-    s << sol.problem->cities[city].latitude << "]" << std::endl;
+    j["cities"].push_back({sol.problem->cities[city].name,
+                           sol.problem->cities[city].longitude,
+                           sol.problem->cities[city].latitude});
   }
-  s << "],\"goal\":" << sol.goal() / 1000.0 << "}" << std::endl;
+  j["goal"] = sol.goal() / 1000.0;
+  s << j.dump(4);
   return s;
 }
 
+/**
+ * @brief reads solution from input stream
+ *
+ * overrides the >> operator, so you can write ```cin >> solution```
+ */
 std::istream &operator>>(std::istream &s, solution_t &sol) {
   nlohmann::json sol_json;
   sol_json = sol_json.parse(s);
@@ -150,23 +216,29 @@ std::istream &operator>>(std::istream &s, solution_t &sol) {
 solution_t brute_force_find_solution(solution_t problem) {
   using namespace std;
   solution_t best = problem;
+  solution_t problem0 = problem;
   do {
     if (best.goal() > problem.goal()) {
       best = problem;
     }
-  } while (next_permutation(problem.cities_to_see.begin(),
-                            problem.cities_to_see.end()));
+    problem = problem.next_solution();
+  } while (!(problem == problem0));
+
   return best;
 }
 
+/**
+ * @brief Main experiment
+ *
+ * You can provide input in json format. It can be as standard input and then
+ * the result would be standard output, or you can give arguments:
+ * ./app input.json output.json
+ * 
+ */
 int main(int argc, char **argv) {
   using namespace std;
 
-  solution_t experiment({{"Warszawa", 52.2330269, 20.7810081},
-                         {"Gdansk", 54.3612063, 18.5499431},
-                         {"Bydgoszcz", 53.1169002, 17.9008963},
-                         {"Poznan", 52.456009, 16.896973}});
-
+  solution_t experiment;
   if (argc > 2) {
     std::ifstream is(argv[1]); // open file
     is >> experiment;
@@ -183,17 +255,10 @@ int main(int argc, char **argv) {
     cout << experiment << endl;
   }
 
+  // save visualization on map
   std::ofstream htmlout("vis.html");
   htmlout << html_header;
-  htmlout << "[";
-  htmlout << experiment.problem->cities.back().longitude << ",";
-  htmlout << experiment.problem->cities.back().latitude << "]" << std::endl;
-
-  for (auto city : experiment.cities_to_see) {
-    htmlout << ",[";
-    htmlout << experiment.problem->cities[city].longitude << ",";
-    htmlout << experiment.problem->cities[city].latitude << "]" << std::endl;
-  }
+  htmlout << experiment;
   htmlout << html_footer;
   htmlout.close();
 }
