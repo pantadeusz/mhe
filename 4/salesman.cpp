@@ -231,7 +231,7 @@ solution_t brute_force_find_solution(solution_t problem) {
   return best;
 }
 
-//// alternatywna wersja reprezentacji rozwiazania
+//// Reprezentacja porzadkowa
 
 class alternative_solution_t {
 public:
