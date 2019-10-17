@@ -4,17 +4,15 @@
  * @brief The example of TSP problem and solution
  * @version 0.1
  * @date 2019-10-15
- * 
+ *
  * @copyright Copyright (c) 2019
- * 
- * 
+ *
+ *
  * Compilation:
  * g++ -std=c++17 salesman.cpp -o salesman -O3
  * Run:
- * ./salesman ./input.json wyniki.json 
+ * ./salesman ./input.json wyniki.json
  */
-
-
 
 #include <algorithm>
 #include <cmath>
@@ -22,8 +20,10 @@
 #include <iostream>
 #include <memory>
 #include <numeric>
+#include <random>
 #include <string>
 #include <vector>
+#include <list>
 
 #include "json.hpp"
 
@@ -164,10 +164,14 @@ public:
    * @return false
    */
   bool operator==(const solution_t &other) const {
-    if (this->problem != other.problem) // is the problem the same (pointers the same)
+    if (this->problem !=
+        other.problem) // is the problem the same (pointers the same)
       return false;
-    if (other.cities_to_see.size() != cities_to_see.size()) // do we have same number of cities
-      throw std::invalid_argument("cities count must be the same - problem in solution! check initializers and data consistency");
+    if (other.cities_to_see.size() !=
+        cities_to_see.size()) // do we have same number of cities
+      throw std::invalid_argument(
+          "cities count must be the same - problem in solution! check "
+          "initializers and data consistency");
     for (int i = 0; i < cities_to_see.size(); i++) { // check the cities order
       if (other.cities_to_see[i] != cities_to_see[i])
         return false;
@@ -227,13 +231,118 @@ solution_t brute_force_find_solution(solution_t problem) {
   return best;
 }
 
+//// alternatywna wersja reprezentacji rozwiazania
+
+class alternative_solution_t {
+public:
+  std::vector<int> solution;
+  std::shared_ptr<problem_t> problem;
+
+  solution_t get_solution() {
+    using namespace std;
+    solution_t ret(problem);
+    vector<int> indexes(solution.size());
+    for (int i = 0; i < solution.size(); i++)
+      indexes[i] = i;
+    for (int i = 0; i < solution.size(); i++) {
+      ret.cities_to_see[i] = indexes[solution[i]];
+      indexes.erase(indexes.begin() + solution[i]); // remove i-th element
+    }
+    return ret;
+  }
+  void set_solution(solution_t s) {}
+};
+
+std::random_device seedsource;
+std::default_random_engine generator(seedsource());
+
+solution_t hillclimb(std::shared_ptr<problem_t> problem) {
+  using namespace std;
+  alternative_solution_t solution;
+  solution.solution.resize(problem->cities.size());
+  for (int i = 0; i < solution.solution.size(); i++) {
+    std::uniform_int_distribution<int> distribution(
+        0, solution.solution.size() - 1 - i);
+    solution.solution[i] = distribution(generator);
+  }
+  solution.problem = problem;
+
+  // there must be more cities than 1
+  for (int iteration = 0; iteration < 100000; iteration++) {
+    std::uniform_int_distribution<int> distribution(
+        0, solution.solution.size() - 2); // modyfikujemy
+    std::uniform_int_distribution<int> dist01(0, 1);
+    int idx = distribution(generator);
+    alternative_solution_t solution_candidate = solution;
+    solution_candidate.solution[idx] = (solution_candidate.solution[idx] 
+        + (2*dist01(generator)-1) 
+        + solution.solution.size()-idx) % 
+          (solution.solution.size()-idx);
+
+    if (solution_candidate.get_solution().goal() < solution.get_solution().goal()) {
+      solution = solution_candidate;
+      cout << solution.get_solution().goal()/1000.0 << endl; 
+    }
+  };
+
+  return solution.get_solution();
+}
+
+
+
+/*
+
+TODO: Nastepny wyklad
+
+solution_t tabusearch(std::shared_ptr<problem_t> problem) {
+  using namespace std;
+  list<alternative_solution_t> solution(1);
+
+  // list containing one correct solution
+  solution.back().solution.resize(problem->cities.size());
+  for (int i = 0; i < solution.back().solution.size(); i++) {
+    std::uniform_int_distribution<int> distribution(
+        0, solution.back().solution.size() - 1 - i);
+    solution.back().solution[i] = distribution(generator);
+  }
+  solution.back().problem = problem;
+
+   // TODO - nastepny wyklad !!
+ 
+  auto is_in_tabu = [&](auto sol) {
+    for (auto &s: solution) {
+
+    }
+  };
+
+  // there must be more cities than 1
+  for (int iteration = 0; iteration < 100000; iteration++) {
+    
+    alternative_solution_t solution_candidate = solution;
+    solution_candidate.solution[idx] = (solution_candidate.solution[idx] 
+        + (2*dist01(generator)-1) 
+        + solution.solution.size()-idx) % 
+          (solution.solution.size()-idx);
+
+    if (solution_candidate.get_solution().goal() < solution.get_solution().goal()) {
+      solution = solution_candidate;
+      cout << solution.get_solution().goal()/1000.0 << endl; 
+    }
+  };
+
+  return solution.get_solution();
+}
+
+*/
+
+
 /**
  * @brief Main experiment
  *
  * You can provide input in json format. It can be as standard input and then
  * the result would be standard output, or you can give arguments:
  * ./app input.json output.json
- * 
+ *
  */
 int main(int argc, char **argv) {
   using namespace std;
@@ -246,7 +355,9 @@ int main(int argc, char **argv) {
     cin >> experiment;
   }
 
-  experiment = brute_force_find_solution(experiment);
+//  experiment = brute_force_find_solution(experiment);
+   experiment = hillclimb(experiment.problem);
+
 
   if (argc > 2) {
     std::ofstream os(argv[2]); // open file
