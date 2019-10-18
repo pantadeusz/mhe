@@ -35,8 +35,8 @@
 class city_t {
 public:
   std::string name;
-  double longitude;
   double latitude;
+  double longitude;
 
   /**
    * @brief calculate distance between two cities
@@ -46,7 +46,7 @@ public:
    */
   double distance(city_t &c2) {
     using namespace std;
-    auto &[name2, lon2, lat2] = c2;
+    auto &[name2, lat2, lon2] = c2;
     auto R = 6371e3; // metres
     auto fi1 = latitude * M_PI / 180.0;
     auto fi2 = lat2 * M_PI / 180.0;
@@ -191,8 +191,8 @@ std::ostream &operator<<(std::ostream &s, const solution_t &sol) {
   j["cities"] = json::array();
   for (auto city : sol.cities_to_see) {
     j["cities"].push_back({sol.problem->cities[city].name,
-                           sol.problem->cities[city].longitude,
-                           sol.problem->cities[city].latitude});
+                           sol.problem->cities[city].latitude,
+                           sol.problem->cities[city].longitude});
   }
   j["goal"] = sol.goal() / 1000.0;
   s << j.dump(4);

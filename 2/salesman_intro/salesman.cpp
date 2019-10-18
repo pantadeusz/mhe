@@ -11,8 +11,8 @@
 class city_t {
 public:
   std::string name;
-  double longitude;
   double latitude;
+  double longitude;
 
   /**
    * @brief calculate distance between two cities
@@ -22,7 +22,7 @@ public:
    */
   double distance(city_t &c2) {
     using namespace std;
-    auto &[name2, lon2, lat2] = c2;
+    auto &[name2, lat2, lon2] = c2;
     auto R = 6371e3; // metres
     auto fi1 = latitude * M_PI / 180.0;
     auto fi2 = lat2 * M_PI / 180.0;
