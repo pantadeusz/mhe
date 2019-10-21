@@ -31,6 +31,18 @@
 #include "salesman.hpp"
 #include "salesman_html_skel.cpp"
 
+
+/**
+ * We need some randomness. First random device (hopefully hardware)
+ * */
+std::random_device seedsource;
+/**
+ * Then create default random engine
+ * */
+std::default_random_engine generator(seedsource());
+
+
+
 /**
  * @brief prints solution to output stream
  *
@@ -83,40 +95,34 @@ solution_t brute_force_find_solution(std::shared_ptr<problem_t> problem_) {
   return best;
 }
 
-std::random_device seedsource;
-std::default_random_engine generator(seedsource());
-
 /**
  * Hill climbing algorithm - randomized version
  * */
-solution_t hillclimb(std::shared_ptr<problem_t> problem, const int iterations = 1000) {
+solution_t hillclimb(std::shared_ptr<problem_t> problem,
+                     const int iterations = 1000) {
   using namespace std;
   auto solution = alternative_solution_t::of(problem, generator);
   // there must be more cities than 1
   for (int iteration = 0; iteration < iterations; iteration++) {
-    alternative_solution_t solution_candidate =
-        solution.generate_random_neighbour(1, generator);
-
-    if (solution_candidate.get_solution().goal() <
-        solution.get_solution().goal()) {
-      //cout << solution_candidate.get_solution().goal() / 1000.0 << "  vs  "
-      //     << solution.get_solution().goal() / 1000.0 << endl;
-      solution = solution_candidate;
+    auto new_solution = solution.generate_random_neighbour(1, generator);
+    if (new_solution.get_solution().goal() < solution.get_solution().goal()) {
+      solution = new_solution;
     }
   };
 
   return solution.get_solution();
 }
 
-/*
-TODO: Next lecture
+/**
+ * TODO: Next lecture
+ * 
+ * hill climb - deterministic version
+ * tabu search
+ */
 
-* hill climb - deterministic version
-* tabu search
-*/
 /*
-solution_t tabusearch(std::shared_ptr<problem_t> problem,const int iterations = 1000, const int max_tabu_size = 1000) {
-  using namespace std;
+solution_t tabusearch(std::shared_ptr<problem_t> problem,const int iterations =
+1000, const int max_tabu_size = 1000) { using namespace std;
   list<alternative_solution_t> tabu_list; // tabu
   tabu_list.push_back(alternative_solution_t::of(problem, generator)); // start
 point
@@ -134,26 +140,6 @@ generator));
 }
 */
 
-void test_alternative_solution_t() {
-  solution_t solution0(
-      {{"Januszowo", 1, 1}, {"Tortowo", 2, 2}, {"Wacikowo", 3, 3}});
-  using namespace std;
-  std::swap(solution0.cities_to_see[0], solution0.cities_to_see[1]);
-  for (auto i : solution0.cities_to_see)
-    cout << i << " ";
-  cout << endl;
-  auto solution = alternative_solution_t::of(solution0);
-  for (auto i : solution.solution)
-    cout << i << " ";
-  cout << " <- alternative_solution_t solution.solution" << endl;
-  for (auto i : solution.get_solution().cities_to_see)
-    cout << i << " ";
-  cout << endl;
-  for (auto i : solution.set_solution(solution0).solution)
-    cout << i << " ";
-  cout << endl;
-}
-
 /**
  * @brief Main experiment
  *
@@ -164,8 +150,7 @@ void test_alternative_solution_t() {
  */
 int main(int argc, char **argv) {
   using namespace std;
-  // test_alternative_solution_t();
-  // return 0;
+
   solution_t experiment;
   if (argc > 2) {
     std::ifstream is(argv[1]); // open file
@@ -173,26 +158,28 @@ int main(int argc, char **argv) {
   } else {
     cin >> experiment;
   }
+
   auto start_time_moment = chrono::system_clock::now();
-  // experiment = brute_force_find_solution(experiment.problem);
-  experiment = hillclimb(experiment.problem);
-  // experiment = tabusearch(experiment.problem);
+  // experiment_result = brute_force_find_solution(experiment.problem);
+  auto experiment_result = hillclimb(experiment.problem);
+  // experiment_result = tabusearch(experiment.problem);
   auto end_time_moment = std::chrono::system_clock::now();
   chrono::duration<double> time_duration = end_time_moment - start_time_moment;
   cerr << "[I] calculation_time: " << time_duration.count() << endl;
-  cerr << "[I] solution_goal_value: " << experiment.goal()/1000.0 << endl;
+  cerr << "[I] solution_goal_value: " << experiment_result.goal() / 1000.0
+       << endl;
 
   if (argc > 2) {
     std::ofstream os(argv[2]); // open file
-    os << experiment;
+    os << experiment_result;
   } else {
-    cout << experiment << endl;
+    cout << experiment_result << endl;
   }
 
   // save visualization on map
   std::ofstream htmlout("vis.html");
   htmlout << html_header;
-  htmlout << experiment;
+  htmlout << experiment_result;
   htmlout << html_footer;
   htmlout.close();
 }
