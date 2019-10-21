@@ -18,174 +18,24 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <list>
 #include <memory>
 #include <numeric>
 #include <random>
 #include <string>
 #include <vector>
-#include <list>
 
 #include "json.hpp"
 
+#include "salesman.hpp"
 #include "salesman_html_skel.cpp"
-
-/**
- * @brief class representing single city on the map
- */
-class city_t {
-public:
-  std::string name;
-  double latitude;
-  double longitude;
-
-  /**
-   * @brief calculate distance between two cities
-   *
-   * @param c2 second city to calculate distance to
-   * @return double distance on the planet Earth
-   */
-  double distance(city_t &c2) {
-    using namespace std;
-    auto &[name2, lat2, lon2] = c2;
-    auto R = 6371e3; // metres
-    auto fi1 = latitude * M_PI / 180.0;
-    auto fi2 = lat2 * M_PI / 180.0;
-    auto deltafi = (lat2 - latitude) * M_PI / 180.0;
-    auto deltalambda = (lon2 - longitude) * M_PI / 180.0;
-    auto a = sin(deltafi / 2) * sin(deltafi / 2) +
-             cos(fi1) * cos(fi2) * sin(deltalambda / 2) * sin(deltalambda / 2);
-    auto c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    auto d = R * c;
-    return d;
-  }
-};
-
-/**
- * @brief the problem definition
- *
- * The cities we would like to see.
- */
-class problem_t {
-public:
-  /**
-   * @brief list of the cities to visit.
-   */
-  std::vector<city_t> cities;
-};
-
-/**
- * @brief the solution type
- *
- */
-class solution_t {
-public:
-  /**
-   * @brief smart pointer that have reference to the problem
-   */
-  std::shared_ptr<problem_t> problem;
-
-  /**
-   * @brief cities indices.
-   * The order in wich we would like to see every city
-   */
-  std::vector<int> cities_to_see;
-
-  /**
-   * @brief Construct a new solution_t object
-   *
-   * This constructor will also generate new problem as a shared pointer so you
-   * don't have to init the problem earlier.
-   *
-   * @param input_cities the cities list.
-   */
-  solution_t(const std::vector<city_t> input_cities)
-      : problem(std::make_shared<problem_t>(problem_t{input_cities})),
-        cities_to_see(input_cities.size()) {
-    for (int i = 0; i < cities_to_see.size(); i++)
-      cities_to_see[i] = i;
-  };
-
-  /**
-   * @brief Construct a new empty solution_t object
-   *
-   * @param input_cities the cities list.
-   */
-  solution_t()
-      : problem(std::make_shared<problem_t>(problem_t{std::vector<city_t>()})),
-        cities_to_see(0){};
-  /**
-   * @brief Construct a new solution t object
-   * It takes shared pointer to the problem definition. This way we don't have
-   * to copy the problem, only smartpointer to it.
-   * @param problem_ the problem smartpointer
-   */
-  solution_t(std::shared_ptr<problem_t> problem_)
-      : problem(problem_), cities_to_see(problem_->cities.size()) {
-    for (int i = 0; i < cities_to_see.size(); i++)
-      cities_to_see[i] = i;
-  };
-
-  /**
-   * @brief goal function value.
-   *
-   * It calculates the summary distance of the path following the solution
-   * cities order. The traveller must come back to home.
-   *
-   * @return double lenght of the path.
-   */
-  double goal() const {
-    double sum = 0.0;
-    auto prev_city =
-        cities_to_see.back(); // we must come back, so include the last city
-    for (auto city : cities_to_see) { // now walk between cities
-      sum += problem->cities[city].distance(problem->cities[prev_city]);
-      prev_city = city;
-    }
-    return sum;
-  };
-
-  /**
-   * @brief generates next possible solution
-   *
-   * @return problem_t the new solution to the problem
-   */
-  solution_t next_solution() const {
-    auto p = *this;
-    std::next_permutation(p.cities_to_see.begin() + 1, p.cities_to_see.end());
-    return p;
-  };
-
-  /**
-   * @brief This operator allows for checking if the solutions are the same and
-   * the problem is the same
-   *
-   * @param other
-   * @return true
-   * @return false
-   */
-  bool operator==(const solution_t &other) const {
-    if (this->problem !=
-        other.problem) // is the problem the same (pointers the same)
-      return false;
-    if (other.cities_to_see.size() !=
-        cities_to_see.size()) // do we have same number of cities
-      throw std::invalid_argument(
-          "cities count must be the same - problem in solution! check "
-          "initializers and data consistency");
-    for (int i = 0; i < cities_to_see.size(); i++) { // check the cities order
-      if (other.cities_to_see[i] != cities_to_see[i])
-        return false;
-    }
-    return true;
-  }
-};
 
 /**
  * @brief prints solution to output stream
  *
  * overrides the << operator, so you can write ```cout << solution```
  */
-std::ostream &operator<<(std::ostream &s, const solution_t &sol) {
+inline std::ostream &operator<<(std::ostream &s, const solution_t &sol) {
   using namespace nlohmann;
   json j;
   j["cities"] = json::array();
@@ -204,7 +54,7 @@ std::ostream &operator<<(std::ostream &s, const solution_t &sol) {
  *
  * overrides the >> operator, so you can write ```cin >> solution```
  */
-std::istream &operator>>(std::istream &s, solution_t &sol) {
+inline std::istream &operator>>(std::istream &s, solution_t &sol) {
   nlohmann::json sol_json;
   sol_json = sol_json.parse(s);
   std::vector<city_t> cities;
@@ -217,78 +67,42 @@ std::istream &operator>>(std::istream &s, solution_t &sol) {
   return s;
 }
 
-solution_t brute_force_find_solution(solution_t problem) {
+solution_t brute_force_find_solution(std::shared_ptr<problem_t> problem_) {
   using namespace std;
-  solution_t best = problem;
-  solution_t problem0 = problem;
+  solution_t current(problem_);  // current solution
+  solution_t best(problem_);     // best solution so far
+  solution_t problem0(problem_); // first solution
+
   do {
-    if (best.goal() > problem.goal()) {
-      best = problem;
-    }
-    problem = problem.next_solution();
-  } while (!(problem == problem0));
+    current = current.next_solution();
+    if (best.goal() > current.goal())
+      best = current;
+  } while (!(current == problem0));
 
   return best;
 }
-
-//// Reprezentacja porzadkowa
-
-class alternative_solution_t {
-public:
-  std::vector<int> solution;
-  std::shared_ptr<problem_t> problem;
-
-  solution_t get_solution() {
-    using namespace std;
-    solution_t ret(problem);
-    vector<int> indexes(solution.size());
-    for (int i = 0; i < solution.size(); i++)
-      indexes[i] = i;
-    for (int i = 0; i < solution.size(); i++) {
-      ret.cities_to_see[i] = indexes[solution[i]];
-      indexes.erase(indexes.begin() + solution[i]); // remove i-th element
-    }
-    return ret;
-  }
-  void set_solution(solution_t s) {}
-};
 
 std::random_device seedsource;
 std::default_random_engine generator(seedsource());
 
 solution_t hillclimb(std::shared_ptr<problem_t> problem) {
   using namespace std;
-  alternative_solution_t solution;
-  solution.solution.resize(problem->cities.size());
-  for (int i = 0; i < solution.solution.size(); i++) {
-    std::uniform_int_distribution<int> distribution(
-        0, solution.solution.size() - 1 - i);
-    solution.solution[i] = distribution(generator);
-  }
-  solution.problem = problem;
-
+  auto solution = alternative_solution_t::of(problem, generator);
   // there must be more cities than 1
   for (int iteration = 0; iteration < 100000; iteration++) {
-    std::uniform_int_distribution<int> distribution(
-        0, solution.solution.size() - 2); // modyfikujemy
-    std::uniform_int_distribution<int> dist01(0, 1);
-    int idx = distribution(generator);
-    alternative_solution_t solution_candidate = solution;
-    solution_candidate.solution[idx] = (solution_candidate.solution[idx] 
-        + (2*dist01(generator)-1) 
-        + solution.solution.size()-idx) % 
-          (solution.solution.size()-idx);
+    alternative_solution_t solution_candidate =
+        solution.generate_random_neighbour(1, generator);
 
-    if (solution_candidate.get_solution().goal() < solution.get_solution().goal()) {
+    if (solution_candidate.get_solution().goal() <
+        solution.get_solution().goal()) {
+      cout << solution_candidate.get_solution().goal() / 1000.0 << "  vs  "
+           << solution.get_solution().goal() / 1000.0 << endl;
       solution = solution_candidate;
-      cout << solution.get_solution().goal()/1000.0 << endl; 
     }
   };
 
   return solution.get_solution();
 }
-
-
 
 /*
 
@@ -308,7 +122,7 @@ solution_t tabusearch(std::shared_ptr<problem_t> problem) {
   solution.back().problem = problem;
 
    // TODO - nastepny wyklad !!
- 
+
   auto is_in_tabu = [&](auto sol) {
     for (auto &s: solution) {
 
@@ -317,16 +131,16 @@ solution_t tabusearch(std::shared_ptr<problem_t> problem) {
 
   // there must be more cities than 1
   for (int iteration = 0; iteration < 100000; iteration++) {
-    
+
     alternative_solution_t solution_candidate = solution;
-    solution_candidate.solution[idx] = (solution_candidate.solution[idx] 
-        + (2*dist01(generator)-1) 
-        + solution.solution.size()-idx) % 
+    solution_candidate.solution[idx] = (solution_candidate.solution[idx]
+        + (2*dist01(generator)-1)
+        + solution.solution.size()-idx) %
           (solution.solution.size()-idx);
 
-    if (solution_candidate.get_solution().goal() < solution.get_solution().goal()) {
-      solution = solution_candidate;
-      cout << solution.get_solution().goal()/1000.0 << endl; 
+    if (solution_candidate.get_solution().goal() <
+solution.get_solution().goal()) { solution = solution_candidate; cout <<
+solution.get_solution().goal()/1000.0 << endl;
     }
   };
 
@@ -335,6 +149,25 @@ solution_t tabusearch(std::shared_ptr<problem_t> problem) {
 
 */
 
+void test_alternative_solution_t() {
+  solution_t solution0(
+      {{"Januszowo", 1, 1}, {"Tortowo", 2, 2}, {"Wacikowo", 3, 3}});
+  using namespace std;
+  std::swap(solution0.cities_to_see[0], solution0.cities_to_see[1]);
+  for (auto i : solution0.cities_to_see)
+    cout << i << " ";
+  cout << endl;
+  auto solution = alternative_solution_t::of(solution0);
+  for (auto i : solution.solution)
+    cout << i << " ";
+  cout << " <- alternative_solution_t solution.solution" << endl;
+  for (auto i : solution.get_solution().cities_to_see)
+    cout << i << " ";
+  cout << endl;
+  for (auto i : solution.set_solution(solution0).solution)
+    cout << i << " ";
+  cout << endl;
+}
 
 /**
  * @brief Main experiment
@@ -346,7 +179,8 @@ solution_t tabusearch(std::shared_ptr<problem_t> problem) {
  */
 int main(int argc, char **argv) {
   using namespace std;
-
+  // test_alternative_solution_t();
+  // return 0;
   solution_t experiment;
   if (argc > 2) {
     std::ifstream is(argv[1]); // open file
@@ -355,9 +189,8 @@ int main(int argc, char **argv) {
     cin >> experiment;
   }
 
-//  experiment = brute_force_find_solution(experiment);
-   experiment = hillclimb(experiment.problem);
-
+  // experiment = brute_force_find_solution(experiment.problem);
+  experiment = hillclimb(experiment.problem);
 
   if (argc > 2) {
     std::ofstream os(argv[2]); // open file
