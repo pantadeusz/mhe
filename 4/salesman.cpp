@@ -15,6 +15,7 @@
  */
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -85,18 +86,21 @@ solution_t brute_force_find_solution(std::shared_ptr<problem_t> problem_) {
 std::random_device seedsource;
 std::default_random_engine generator(seedsource());
 
-solution_t hillclimb(std::shared_ptr<problem_t> problem) {
+/**
+ * Hill climbing algorithm - randomized version
+ * */
+solution_t hillclimb(std::shared_ptr<problem_t> problem, const int iterations = 1000) {
   using namespace std;
   auto solution = alternative_solution_t::of(problem, generator);
   // there must be more cities than 1
-  for (int iteration = 0; iteration < 100000; iteration++) {
+  for (int iteration = 0; iteration < iterations; iteration++) {
     alternative_solution_t solution_candidate =
         solution.generate_random_neighbour(1, generator);
 
     if (solution_candidate.get_solution().goal() <
         solution.get_solution().goal()) {
-      cout << solution_candidate.get_solution().goal() / 1000.0 << "  vs  "
-           << solution.get_solution().goal() / 1000.0 << endl;
+      //cout << solution_candidate.get_solution().goal() / 1000.0 << "  vs  "
+      //     << solution.get_solution().goal() / 1000.0 << endl;
       solution = solution_candidate;
     }
   };
@@ -105,48 +109,29 @@ solution_t hillclimb(std::shared_ptr<problem_t> problem) {
 }
 
 /*
+TODO: Next lecture
 
-TODO: Nastepny wyklad
-
-solution_t tabusearch(std::shared_ptr<problem_t> problem) {
+* hill climb - deterministic version
+* tabu search
+*/
+/*
+solution_t tabusearch(std::shared_ptr<problem_t> problem,const int iterations = 1000, const int max_tabu_size = 1000) {
   using namespace std;
-  list<alternative_solution_t> solution(1);
-
-  // list containing one correct solution
-  solution.back().solution.resize(problem->cities.size());
-  for (int i = 0; i < solution.back().solution.size(); i++) {
-    std::uniform_int_distribution<int> distribution(
-        0, solution.back().solution.size() - 1 - i);
-    solution.back().solution[i] = distribution(generator);
+  list<alternative_solution_t> tabu_list; // tabu
+  tabu_list.push_back(alternative_solution_t::of(problem, generator)); // start
+point
+  // repeat
+  for (int iteration = 0; iteration < iterations; iteration++) {
+    tabu_list.push_back(tabu_list.back().generate_random_neighbour(1,
+generator));
   }
-  solution.back().problem = problem;
-
-   // TODO - nastepny wyklad !!
-
-  auto is_in_tabu = [&](auto sol) {
-    for (auto &s: solution) {
-
-    }
-  };
-
-  // there must be more cities than 1
-  for (int iteration = 0; iteration < 100000; iteration++) {
-
-    alternative_solution_t solution_candidate = solution;
-    solution_candidate.solution[idx] = (solution_candidate.solution[idx]
-        + (2*dist01(generator)-1)
-        + solution.solution.size()-idx) %
-          (solution.solution.size()-idx);
-
-    if (solution_candidate.get_solution().goal() <
-solution.get_solution().goal()) { solution = solution_candidate; cout <<
-solution.get_solution().goal()/1000.0 << endl;
-    }
-  };
-
-  return solution.get_solution();
+  // get best element from tabu and best found so far - will change on lecture
+  return min_element(tabu_list.begin(), tabu_list.end(),
+                     [](auto a, auto b) {
+                       return a.get_solution().goal() < b.get_solution().goal();
+                     })
+      ->get_solution();
 }
-
 */
 
 void test_alternative_solution_t() {
@@ -188,9 +173,14 @@ int main(int argc, char **argv) {
   } else {
     cin >> experiment;
   }
-
+  auto start_time_moment = chrono::system_clock::now();
   // experiment = brute_force_find_solution(experiment.problem);
   experiment = hillclimb(experiment.problem);
+  // experiment = tabusearch(experiment.problem);
+  auto end_time_moment = std::chrono::system_clock::now();
+  chrono::duration<double> time_duration = end_time_moment - start_time_moment;
+  cerr << "[I] calculation_time: " << time_duration.count() << endl;
+  cerr << "[I] solution_goal_value: " << experiment.goal()/1000.0 << endl;
 
   if (argc > 2) {
     std::ofstream os(argv[2]); // open file
