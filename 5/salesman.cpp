@@ -31,7 +31,6 @@
 #include "salesman.hpp"
 #include "salesman_html_skel.cpp"
 
-
 /**
  * We need some randomness. First random device (hopefully hardware)
  * */
@@ -40,8 +39,6 @@ std::random_device seedsource;
  * Then create default random engine
  * */
 std::default_random_engine generator(seedsource());
-
-
 
 /**
  * @brief prints solution to output stream
@@ -113,32 +110,110 @@ solution_t hillclimb(std::shared_ptr<problem_t> problem,
   return solution.get_solution();
 }
 
+std::list<alternative_solution_t>
+generate_neighbours(alternative_solution_t &tmp_sol_) {
+  std::list<alternative_solution_t> ret;
+
+  for (int i = 0; i < tmp_sol_.solution.size() - 1; i++) {
+    alternative_solution_t nsol = tmp_sol_;
+    nsol.solution[i] = (nsol.solution[i] + 1) % (tmp_sol_.solution.size() - i);
+    ret.push_back(nsol);
+    nsol = tmp_sol_;
+    nsol.solution[i] = (nsol.solution[i] - 1 + (tmp_sol_.solution.size() - i)) %
+                       (tmp_sol_.solution.size() - i);
+    ret.push_back(nsol);
+  }
+  return std::move(ret);
+}
+
+/**
+ * Hill climbing algorithm - randomized version
+ * */
+solution_t hillclimb_deteriministic(std::shared_ptr<problem_t> problem,
+                                    const int iterations = 1000) {
+  using namespace std;
+  auto solution = alternative_solution_t::of(problem, generator);
+  // there must be more cities than 1
+  for (int iteration = 0; iteration < iterations; iteration++) {
+    auto neighbours = generate_neighbours(solution);
+    auto current_best = neighbours.back();
+    for (auto &sol : neighbours) {
+      if (sol.get_solution().goal() < current_best.get_solution().goal()) {
+        current_best = sol;
+      }
+    }
+    if (current_best.get_solution().goal() < solution.get_solution().goal()) {
+      solution = current_best;
+    } else {
+      cerr << "found solution earlier " << iteration << " (before "
+           << iterations << ")" << endl;
+      return solution.get_solution();
+    }
+  };
+
+  return solution.get_solution();
+}
+bool operator==(const alternative_solution_t &a,
+                const alternative_solution_t &b) {
+  for (int i = 0; i < a.solution.size(); i++) {
+    if (a.solution.at(i) != b.solution.at(i))
+      return false;
+  }
+  return true;
+}
 /**
  * TODO: Next lecture
- * 
- * hill climb - deterministic version
+ *
  * tabu search
  */
-
-/*
-solution_t tabusearch(std::shared_ptr<problem_t> problem,const int iterations =
-1000, const int max_tabu_size = 1000) { using namespace std;
+solution_t tabusearch(std::shared_ptr<problem_t> problem,
+                      const int iterations = 1000,
+                      const int max_tabu_size = 50) {
+  using namespace std;
   list<alternative_solution_t> tabu_list; // tabu
-  tabu_list.push_back(alternative_solution_t::of(problem, generator)); // start
-point
+  tabu_list.push_back(alternative_solution_t::of(problem, generator));
+  alternative_solution_t global_best = tabu_list.back();
   // repeat
   for (int iteration = 0; iteration < iterations; iteration++) {
-    tabu_list.push_back(tabu_list.back().generate_random_neighbour(1,
-generator));
+    auto neighbours_0 = generate_neighbours(tabu_list.back());
+    // cout << "neighbours_0 " << neighbours_0.size() << endl;
+    list<alternative_solution_t> neighbours;
+    // filtrujemy rozwiazania znajdujace sie w tabu
+    for (auto &e : neighbours_0) {
+      bool is_in_tabu = false;
+      for (auto &te : tabu_list) {
+        if (e == te) {
+          // cerr << e.get_solution() << " == " << te.get_solution() << endl;
+          is_in_tabu = true;
+          break;
+        }
+      }
+      if (!is_in_tabu)
+        neighbours.push_back(e);
+    }
+    if (neighbours.size() <= 0) {
+      cerr << "zakonczylismy na iteracji " << iteration << endl;
+      break;
+    }
+    // szukamy sasiada ktory jest najlepszy
+    auto current_best = neighbours.back();
+    for (auto &sol : neighbours) {
+      if (sol.get_solution().goal() < current_best.get_solution().goal()) {
+        current_best = sol;
+      }
+    }
+    // dodajemy lepszego
+    tabu_list.push_back(current_best);
+    if (current_best.get_solution().goal() <
+        global_best.get_solution().goal()) {
+      global_best = current_best;
+    }
+    // aktualizujemy globalnie najlepszego
+    if (tabu_list.size() >= max_tabu_size)
+      tabu_list.pop_front();
   }
-  // get best element from tabu and best found so far - will change on lecture
-  return min_element(tabu_list.begin(), tabu_list.end(),
-                     [](auto a, auto b) {
-                       return a.get_solution().goal() < b.get_solution().goal();
-                     })
-      ->get_solution();
+  return global_best.get_solution();
 }
-*/
 
 /**
  * @brief Main experiment
@@ -160,9 +235,10 @@ int main(int argc, char **argv) {
   }
 
   auto start_time_moment = chrono::system_clock::now();
-  // experiment_result = brute_force_find_solution(experiment.problem);
-  auto experiment_result = hillclimb(experiment.problem);
-  // experiment_result = tabusearch(experiment.problem);
+  //auto experiment_result = brute_force_find_solution(experiment.problem);
+  // auto experiment_result = hillclimb(experiment.problem);
+  // auto experiment_result = hillclimb_deteriministic(experiment.problem);
+  auto experiment_result = tabusearch(experiment.problem);
   auto end_time_moment = std::chrono::system_clock::now();
   chrono::duration<double> time_duration = end_time_moment - start_time_moment;
   cerr << "[I] calculation_time: " << time_duration.count() << endl;
