@@ -162,8 +162,6 @@ bool operator==(const alternative_solution_t &a,
   return true;
 }
 /**
- * TODO: Next lecture
- *
  * tabu search
  */
 solution_t tabusearch(std::shared_ptr<problem_t> problem,
@@ -175,42 +173,42 @@ solution_t tabusearch(std::shared_ptr<problem_t> problem,
   alternative_solution_t global_best = tabu_list.back();
   // repeat
   for (int iteration = 0; iteration < iterations; iteration++) {
-    auto neighbours_0 = generate_neighbours(tabu_list.back());
-    // cout << "neighbours_0 " << neighbours_0.size() << endl;
-    list<alternative_solution_t> neighbours;
-    // filtrujemy rozwiazania znajdujace sie w tabu
-    for (auto &e : neighbours_0) {
-      bool is_in_tabu = false;
-      for (auto &te : tabu_list) {
-        if (e == te) {
-          // cerr << e.get_solution() << " == " << te.get_solution() << endl;
-          is_in_tabu = true;
-          break;
+    auto neighbours = generate_neighbours(tabu_list.back());
+    // delete elements that are in tabu
+    neighbours.erase(std::remove_if(neighbours.begin(), neighbours.end(),
+                                    [&tabu_list](const auto &te) {
+                                      for (auto &e : tabu_list)
+                                        if (e == te)
+                                          return true;
+                                      return false;
+                                    }),
+                     neighbours.end());
+    
+    if (neighbours.size() <= 0) {
+      // impossible to find next solution
+      if (tabu_list.size() > 1)
+        tabu_list.pop_front();
+      else
+        return global_best.get_solution();
+    } else {
+      // find best neighbour
+      auto current_best = neighbours.back();
+      for (auto &sol : neighbours) {
+        if (sol.get_solution().goal() < current_best.get_solution().goal()) {
+          current_best = sol;
         }
       }
-      if (!is_in_tabu)
-        neighbours.push_back(e);
-    }
-    if (neighbours.size() <= 0) {
-      cerr << "zakonczylismy na iteracji " << iteration << endl;
-      break;
-    }
-    // szukamy sasiada ktory jest najlepszy
-    auto current_best = neighbours.back();
-    for (auto &sol : neighbours) {
-      if (sol.get_solution().goal() < current_best.get_solution().goal()) {
-        current_best = sol;
+      // dodajemy lepszego
+      tabu_list.push_back(current_best);
+      if (current_best.get_solution().goal() <
+          global_best.get_solution().goal()) {
+        global_best = current_best;
       }
+
+      // update global best
+      if (tabu_list.size() >= max_tabu_size)
+        tabu_list.pop_front();
     }
-    // dodajemy lepszego
-    tabu_list.push_back(current_best);
-    if (current_best.get_solution().goal() <
-        global_best.get_solution().goal()) {
-      global_best = current_best;
-    }
-    // aktualizujemy globalnie najlepszego
-    if (tabu_list.size() >= max_tabu_size)
-      tabu_list.pop_front();
   }
   return global_best.get_solution();
 }
@@ -235,7 +233,7 @@ int main(int argc, char **argv) {
   }
 
   auto start_time_moment = chrono::system_clock::now();
-  //auto experiment_result = brute_force_find_solution(experiment.problem);
+  // auto experiment_result = brute_force_find_solution(experiment.problem);
   // auto experiment_result = hillclimb(experiment.problem);
   // auto experiment_result = hillclimb_deteriministic(experiment.problem);
   auto experiment_result = tabusearch(experiment.problem);
