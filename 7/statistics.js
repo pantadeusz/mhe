@@ -1,3 +1,7 @@
+/*
+This script generates summarty statistics from "output" folder. Calculates average values and prints them
+on console.
+*/
 const fs = require('fs');
 
 ///// SETUP ///////////////////////////////////////////////////////////

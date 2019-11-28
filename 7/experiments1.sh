@@ -6,7 +6,7 @@ EXECUTABLE_NAME=./build_experiment/salesman
 mkdir -p build_experiment
 cd build_experiment
 cmake ..
-make
+make salesman
 cd ..
 METHODS_TO_TEST=`$EXECUTABLE_NAME -method list 2> /dev/null`
 echo $METHODS_TO_TEST
