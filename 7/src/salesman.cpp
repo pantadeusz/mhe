@@ -153,6 +153,46 @@ solution_t hillclimb_deteriministic(std::shared_ptr<problem_t> problem,
 
   return solution.get_solution();
 }
+
+
+/**
+ * Simulated annealing algorithm to the traveling salesman problem.
+ * */
+solution_t simulated_annealing(std::shared_ptr<problem_t> problem,
+                     const int iterations = 1000,
+                     std::function<double(int)> T = 
+                      [](int k) {return 4000000.0/(double)k;}) {
+  using namespace std;
+  list<alternative_solution_t> s;
+  s.push_back( alternative_solution_t::of(problem, generator) );
+  // there must be more cities than 1
+  for (int k = 1; k <= iterations; k++) {
+    auto new_solution = s.back().generate_random_neighbour(1, generator);
+    if (new_solution.get_solution().goal() < s.back().get_solution().goal()) {
+      s.push_back(new_solution);
+    } else {
+      double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
+      auto f_t_k = new_solution.get_solution().goal();
+      auto f_s_k_1 = s.back().get_solution().goal();
+      if (u < exp(-abs(f_t_k-f_s_k_1)/T(k))) {
+        s.push_back(new_solution);
+      } else {
+        s.push_back(s.back()); // for compatibility with pseudocode
+      }
+    }
+  };
+
+  // for (auto e: s) {
+  //   // static int i = 0;
+    // // i++;
+  //   // cerr << i << " " << (e.get_solution().goal()/1000.0) << endl;
+  // }
+  return min_element(s.begin(),s.end(),[](auto a,auto b){
+    return (a.get_solution().goal()<b.get_solution().goal());
+  })->get_solution();
+}
+
+
 bool operator==(const alternative_solution_t &a,
                 const alternative_solution_t &b) {
   for (unsigned i = 0; i < a.solution.size(); i++) {
@@ -233,6 +273,10 @@ std::map<std::string, method_f> generate_methods_map() {
   methods["tabusearch"] = [](auto problem, auto /*args*/) {
     return tabusearch(problem);
   };
+  methods["simulated_annealing"] = [](auto problem, auto /*args*/) {
+    return simulated_annealing(problem);
+  };
+  
   return methods;
 }
 
