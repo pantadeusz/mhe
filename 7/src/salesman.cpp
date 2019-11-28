@@ -114,7 +114,7 @@ std::list<alternative_solution_t>
 generate_neighbours(alternative_solution_t &tmp_sol_) {
   std::list<alternative_solution_t> ret;
 
-  for (int i = 0; i < tmp_sol_.solution.size() - 1; i++) {
+  for (int i = 0; i < (int)tmp_sol_.solution.size() - 1; i++) {
     alternative_solution_t nsol = tmp_sol_;
     nsol.solution[i] = (nsol.solution[i] + 1) % (tmp_sol_.solution.size() - i);
     ret.push_back(nsol);
@@ -155,7 +155,7 @@ solution_t hillclimb_deteriministic(std::shared_ptr<problem_t> problem,
 }
 bool operator==(const alternative_solution_t &a,
                 const alternative_solution_t &b) {
-  for (int i = 0; i < a.solution.size(); i++) {
+  for (unsigned i = 0; i < a.solution.size(); i++) {
     if (a.solution.at(i) != b.solution.at(i))
       return false;
   }
@@ -206,7 +206,7 @@ solution_t tabusearch(std::shared_ptr<problem_t> problem,
       }
 
       // update global best
-      if (tabu_list.size() >= max_tabu_size)
+      if ((int)tabu_list.size() >= max_tabu_size)
         tabu_list.pop_front();
     }
   }
@@ -221,16 +221,16 @@ std::map<std::string, method_f> generate_methods_map() {
 
   map<string, method_f> methods;
 
-  methods["brute_force_find_solution"] = [](auto problem, auto args) {
+  methods["brute_force_find_solution"] = [](auto problem, auto /*args*/) {
     return brute_force_find_solution(problem);
   };
-  methods["hillclimb"] = [](auto problem, auto args) {
+  methods["hillclimb"] = [](auto problem, auto /*args*/) {
     return hillclimb(problem);
   };
-  methods["hillclimb_deteriministic"] = [](auto problem, auto args) {
+  methods["hillclimb_deteriministic"] = [](auto problem, auto /*args*/) {
     return hillclimb_deteriministic(problem);
   };
-  methods["tabusearch"] = [](auto problem, auto args) {
+  methods["tabusearch"] = [](auto problem, auto /*args*/) {
     return tabusearch(problem);
   };
   return methods;

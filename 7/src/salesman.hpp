@@ -80,7 +80,7 @@ public:
   solution_t(const std::vector<city_t> input_cities)
       : problem(std::make_shared<problem_t>(problem_t{input_cities})),
         cities_to_see(input_cities.size()) {
-    for (int i = 0; i < cities_to_see.size(); i++)
+    for (unsigned i = 0; i < cities_to_see.size(); i++)
       cities_to_see[i] = i;
   };
 
@@ -100,7 +100,7 @@ public:
    */
   solution_t(std::shared_ptr<problem_t> problem_)
       : problem(problem_), cities_to_see(problem_->cities.size()) {
-    for (int i = 0; i < cities_to_see.size(); i++)
+    for (unsigned i = 0; i < cities_to_see.size(); i++)
       cities_to_see[i] = i;
   };
 
@@ -151,7 +151,7 @@ public:
       throw std::invalid_argument(
           "cities count must be the same - problem in solution! check "
           "initializers and data consistency");
-    for (int i = 0; i < cities_to_see.size(); i++) { // check the cities order
+    for (unsigned i = 0; i < cities_to_see.size(); i++) { // check the cities order
       if (other.cities_to_see[i] != cities_to_see[i])
         return false;
     }
@@ -191,7 +191,7 @@ public:
   static alternative_solution_t of(std::shared_ptr<problem_t> problem_,
                                    RNG &generator) {
     std::vector<int> solution(problem_->cities.size());
-    for (int i = 0; i < solution.size(); i++) {
+    for (unsigned i = 0; i < solution.size(); i++) {
       solution[i] = std::uniform_int_distribution<int>(0, solution.size() - 1 -
                                                               i)(generator);
     }
@@ -206,9 +206,9 @@ public:
     using namespace std;
     solution_t ret(problem);
     vector<int> indexes(solution.size());
-    for (int i = 0; i < solution.size(); i++)
+    for (unsigned i = 0; i < solution.size(); i++)
       indexes[i] = i;
-    for (int i = 0; i < solution.size(); i++) {
+    for (unsigned i = 0; i < solution.size(); i++) {
       ret.cities_to_see[i] = indexes[solution[i]];
       indexes.erase(indexes.begin() + solution[i]); // remove i-th element
     }
