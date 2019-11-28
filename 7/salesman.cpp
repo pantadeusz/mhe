@@ -214,14 +214,12 @@ solution_t tabusearch(std::shared_ptr<problem_t> problem,
 }
 
 using method_f = std::function<solution_t(std::shared_ptr<problem_t>,
-                                               std::map<std::string, double>)>;
+                                          std::map<std::string, std::string>)>;
 
 std::map<std::string, method_f> generate_methods_map() {
   using namespace std;
 
-  map<string,
-      function<solution_t(std::shared_ptr<problem_t>, map<string, double>)>>
-      methods;
+  map<string, method_f> methods;
 
   methods["brute_force_find_solution"] = [](auto problem, auto args) {
     return brute_force_find_solution(problem);
@@ -237,6 +235,27 @@ std::map<std::string, method_f> generate_methods_map() {
   };
   return methods;
 }
+
+auto process_arguments = [](int argc, char **argv) {
+  using namespace std;
+  map<string, string> arguments_map;
+  for (auto a : vector<string>(argv + 1, argv + argc)) {
+    static string k = "";
+    if (a.substr(0, 1) == "-") {
+      k = string(a.begin() + 1, a.end());
+    } else
+      arguments_map[k] = a;
+  }
+  if (arguments_map.count("h") + arguments_map.count("H") +
+      arguments_map.count("help")) {
+    cout << "arguments:" << endl;
+    cout << "in [input]" << endl;
+    cout << "out [output]" << endl;
+    cout << "html [html_visualization_file_name]" << endl;
+    throw invalid_argument("help was needed");
+  }
+  return arguments_map;
+};
 /**
  * @brief Main experiment
  *
@@ -245,33 +264,33 @@ std::map<std::string, method_f> generate_methods_map() {
  * ./app input.json output.json
  *
  */
-int main(int argc, char **argv) {
+int main(int argc, char **argv_) {
   using namespace std;
   auto methods = generate_methods_map();
 
   solution_t experiment;
-  if (argc > 2) {
-    std::ifstream is(argv[1]); // open file
+
+  auto arguments_map = process_arguments(argc, argv_);
+  string selected_method_name = (arguments_map.count("method") > 0)
+                                    ? arguments_map["method"]
+                                    : "brute_force_find_solution";
+  if (methods.count(selected_method_name) == 0) {
+    for (auto &[name, f] : methods)
+      cout << name << " ";
+    cout << endl;
+    throw invalid_argument("Please provide correct method name.");
+  }
+  if (arguments_map.count("in")) {
+    std::ifstream is(arguments_map["in"]); // open file
     is >> experiment;
   } else {
     cin >> experiment;
   }
-  string selected_method_name = "brute_force_find_solution";
-  if (argc > 3) {
-    selected_method_name = argv[3];
-  }
-  if (methods.count(selected_method_name) == 0) {
-    for (auto &[name,f]: methods) {
-      cout << name << " ";
-    }
-    cout << endl;
-    throw invalid_argument("Please provide correct method name.");
-  }
+
   auto start_time_moment = chrono::system_clock::now();
 
-
   auto experiment_result =
-      methods[selected_method_name](experiment.problem, {});
+      methods[selected_method_name](experiment.problem, arguments_map);
   auto end_time_moment = std::chrono::system_clock::now();
   chrono::duration<double> time_duration = end_time_moment - start_time_moment;
   cerr << "[I] method_name: " << selected_method_name << endl;
@@ -279,17 +298,20 @@ int main(int argc, char **argv) {
   cerr << "[I] solution_goal_value: " << experiment_result.goal() / 1000.0
        << endl;
 
-  if (argc > 2) {
-    std::ofstream os(argv[2]); // open file
+  if (arguments_map.count("out")) {
+    std::ofstream os(arguments_map["out"]); // open file
     os << experiment_result;
   } else {
     cout << experiment_result << endl;
   }
 
   // save visualization on map
-  std::ofstream htmlout("vis.html");
-  htmlout << html_header;
-  htmlout << experiment_result;
-  htmlout << html_footer;
-  htmlout.close();
+  if (arguments_map.count("html")) {
+    std::ofstream htmlout(arguments_map["html"]);
+    htmlout << html_header;
+    htmlout << experiment_result;
+    htmlout << html_footer;
+    htmlout.close();
+  }
+  return 0;
 }
