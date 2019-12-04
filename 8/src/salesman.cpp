@@ -16,6 +16,8 @@
 
 #include "brute.hpp"
 #include "hillclimb.hpp"
+#include "simulatedannealing.hpp"
+#include "tabu.hpp"
 
 #include "salesman.hpp"
 #include "salesman_html_skel.hpp"
@@ -70,91 +72,6 @@ inline std::istream &operator>>(std::istream &s, solution_t &sol) {
   return s;
 }
 
-std::list<alternative_solution_t>
-generate_neighbours(alternative_solution_t &tmp_sol_) {
-  std::list<alternative_solution_t> ret;
-
-  for (int i = 0; i < (int)tmp_sol_.solution.size() - 1; i++) {
-    alternative_solution_t nsol = tmp_sol_;
-    nsol.solution[i] = (nsol.solution[i] + 1) % (tmp_sol_.solution.size() - i);
-    ret.push_back(nsol);
-    nsol = tmp_sol_;
-    nsol.solution[i] = (nsol.solution[i] - 1 + (tmp_sol_.solution.size() - i)) %
-                       (tmp_sol_.solution.size() - i);
-    ret.push_back(nsol);
-  }
-  return std::move(ret);
-}
-
-/**
- * Hill climbing algorithm - randomized version
- * */
-solution_t hillclimb_deteriministic(std::shared_ptr<problem_t> problem,
-                                    const int iterations = 1000) {
-  using namespace std;
-  auto solution = alternative_solution_t::of(problem, generator);
-  // there must be more cities than 1
-  for (int iteration = 0; iteration < iterations; iteration++) {
-    auto neighbours = generate_neighbours(solution);
-    auto current_best = neighbours.back();
-    for (auto &sol : neighbours) {
-      if (sol.get_solution().goal() < current_best.get_solution().goal()) {
-        current_best = sol;
-      }
-    }
-    if (current_best.get_solution().goal() < solution.get_solution().goal()) {
-      solution = current_best;
-    } else {
-      cerr << "found solution earlier " << iteration << " (before "
-           << iterations << ")" << endl;
-      return solution.get_solution();
-    }
-  };
-
-  return solution.get_solution();
-}
-
-/**
- * Simulated annealing algorithm to the traveling salesman problem.
- * */
-solution_t simulated_annealing(std::shared_ptr<problem_t> problem,
-                               const int iterations = 1000,
-                               std::function<double(int)> T = [](int k) {
-                                 return 4000000.0 / (double)k;
-                               }) {
-  using namespace std;
-  list<alternative_solution_t> s;
-  s.push_back(alternative_solution_t::of(problem, generator));
-  // there must be more cities than 1
-  for (int k = 1; k <= iterations; k++) {
-    auto new_solution = s.back().generate_random_neighbour(1, generator);
-    if (new_solution.get_solution().goal() < s.back().get_solution().goal()) {
-      s.push_back(new_solution);
-    } else {
-      double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
-      auto f_t_k = new_solution.get_solution().goal();
-      auto f_s_k_1 = s.back().get_solution().goal();
-      if (u < exp(-abs(f_t_k - f_s_k_1) / T(k))) {
-        s.push_back(new_solution);
-      } else {
-        s.push_back(s.back()); // for compatibility with pseudocode
-      }
-    }
-  };
-
-  // for (auto e: s) {
-  //   // static int i = 0;
-  // // i++;
-  //   // cerr << i << " " << (e.get_solution().goal()/1000.0) << endl;
-  // }
-  return min_element(s.begin(), s.end(),
-                     [](auto a, auto b) {
-                       return (a.get_solution().goal() <
-                               b.get_solution().goal());
-                     })
-      ->get_solution();
-}
-
 bool operator==(const alternative_solution_t &a,
                 const alternative_solution_t &b) {
   for (unsigned i = 0; i < a.solution.size(); i++) {
@@ -162,57 +79,6 @@ bool operator==(const alternative_solution_t &a,
       return false;
   }
   return true;
-}
-/**
- * tabu search
- */
-solution_t tabusearch(std::shared_ptr<problem_t> problem,
-                      const int iterations = 1000,
-                      const int max_tabu_size = 50) {
-  using namespace std;
-  list<alternative_solution_t> tabu_list; // tabu
-  tabu_list.push_back(alternative_solution_t::of(problem, generator));
-  alternative_solution_t global_best = tabu_list.back();
-  // repeat
-  for (int iteration = 0; iteration < iterations; iteration++) {
-    auto neighbours = generate_neighbours(tabu_list.back());
-    // delete elements that are in tabu
-    neighbours.erase(std::remove_if(neighbours.begin(), neighbours.end(),
-                                    [&tabu_list](const auto &te) {
-                                      for (auto &e : tabu_list)
-                                        if (e == te)
-                                          return true;
-                                      return false;
-                                    }),
-                     neighbours.end());
-
-    if (neighbours.size() <= 0) {
-      // impossible to find next solution
-      if (tabu_list.size() > 1)
-        tabu_list.pop_front();
-      else
-        return global_best.get_solution();
-    } else {
-      // find best neighbour
-      auto current_best = neighbours.back();
-      for (auto &sol : neighbours) {
-        if (sol.get_solution().goal() < current_best.get_solution().goal()) {
-          current_best = sol;
-        }
-      }
-      // dodajemy lepszego
-      tabu_list.push_back(current_best);
-      if (current_best.get_solution().goal() <
-          global_best.get_solution().goal()) {
-        global_best = current_best;
-      }
-
-      // update global best
-      if ((int)tabu_list.size() >= max_tabu_size)
-        tabu_list.pop_front();
-    }
-  }
-  return global_best.get_solution();
 }
 
 using method_f = std::function<solution_t(std::shared_ptr<problem_t>,
@@ -229,17 +95,23 @@ std::map<std::string, method_f> generate_methods_map() {
   };
   methods["hillclimb"] = [](auto problem, auto /*args*/) {
     auto solution = alternative_solution_t::of(problem, generator);
-    return hillclimb<alternative_solution_t,std::default_random_engine>
-    (solution, generator, 1000).get_solution();
+    return hillclimb<alternative_solution_t, std::default_random_engine>(
+               solution, generator, 1000)
+        .get_solution();
   };
   methods["hillclimb_deteriministic"] = [](auto problem, auto /*args*/) {
-    return hillclimb_deteriministic(problem);
+    auto solution = alternative_solution_t::of(problem, generator);
+    return hillclimb_deteriministic(solution).get_solution();
   };
   methods["tabusearch"] = [](auto problem, auto /*args*/) {
-    return tabusearch(problem);
+    auto problem0 = alternative_solution_t::of(problem, generator);
+    return tabusearch<alternative_solution_t>(problem0).get_solution();
   };
   methods["simulated_annealing"] = [](auto problem, auto /*args*/) {
-    return simulated_annealing(problem);
+    auto p0 = alternative_solution_t::of(problem, generator);
+    return simulated_annealing<alternative_solution_t,
+                               std::default_random_engine>(p0, generator)
+        .get_solution();
   };
 
   return methods;

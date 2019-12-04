@@ -1,7 +1,6 @@
 #include "salesman_html_skel.hpp"
 #include <string>
 
-
 const std::string html_header = R"(<!DOCTYPE html>
 <html>
 <head>

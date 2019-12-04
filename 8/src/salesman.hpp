@@ -269,6 +269,24 @@ public:
     return get_solution().goal();
   }
 
+
+std::list<alternative_solution_t>
+generate_neighbours() const {
+  alternative_solution_t tmp_sol_ = *this;
+  std::list<alternative_solution_t> ret;
+
+  for (int i = 0; i < (int)tmp_sol_.solution.size() - 1; i++) {
+    alternative_solution_t nsol = tmp_sol_;
+    nsol.solution[i] = (nsol.solution[i] + 1) % (tmp_sol_.solution.size() - i);
+    ret.push_back(nsol);
+    nsol = tmp_sol_;
+    nsol.solution[i] = (nsol.solution[i] - 1 + (tmp_sol_.solution.size() - i)) %
+                       (tmp_sol_.solution.size() - i);
+    ret.push_back(nsol);
+  }
+  return std::move(ret);
+}
+
 };
 
 #endif
