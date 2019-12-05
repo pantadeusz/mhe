@@ -24,7 +24,6 @@
 #include "salesman.hpp"
 #include "salesman_html_skel.hpp"
 
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -35,6 +34,45 @@
 #include <numeric>
 #include <string>
 #include <vector>
+
+auto genetic_algorithm = [](std::vector<solution_t> initial_population,
+                            auto fitness_f, auto selection_f, auto crossover_f,
+                            auto mutation_f, double crossover_probability,
+                            double mutation_probability,
+                            auto term_condition_f) {
+  using namespace std;
+  auto population = initial_population;
+  while (term_condition_f(population)) {
+    vector<double> fit;
+    vector<solution_t> parents;
+    vector<solution_t> children;
+    for (auto &specimen : population)
+      fit.push_back(fitness_f(specimen));
+    for (unsigned int i = 0; i < initial_population.size(); i++) {
+      parents.push_back(population[selection_f(fit)]);
+    }
+    for (unsigned int i = 0; i < initial_population.size(); i += 2) {
+      double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
+      if (crossover_probability < u) {
+        auto [a, b] = crossover_f(parents[i], parents[i + 1]);
+        children.push_back(a);
+        children.push_back(b);
+      } else {
+        children.push_back(parents[i]);
+        children.push_back(parents[i + 1]);
+      }
+    }
+
+    for (unsigned int i = 0; i < initial_population.size(); i += 2) {
+      double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
+      if (mutation_probability < u) {
+        children[i] = mutation_f(children[i]);
+      }
+    }
+    population = children;
+  }
+  // TODO: wybierz najlepszego
+};
 
 using method_f = std::function<solution_t(std::shared_ptr<problem_t>,
                                           std::map<std::string, std::string>)>;
