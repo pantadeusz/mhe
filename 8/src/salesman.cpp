@@ -14,6 +14,8 @@
  * ./salesman ./input.json wyniki.json
  */
 
+#include "helper.hpp"
+
 #include "brute.hpp"
 #include "hillclimb.hpp"
 #include "simulatedannealing.hpp"
@@ -22,7 +24,6 @@
 #include "salesman.hpp"
 #include "salesman_html_skel.hpp"
 
-#include "json.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -34,52 +35,6 @@
 #include <numeric>
 #include <string>
 #include <vector>
-
-/**
- * @brief prints solution to output stream
- *
- * overrides the << operator, so you can write ```cout << solution```
- */
-inline std::ostream &operator<<(std::ostream &s, const solution_t &sol) {
-  using namespace nlohmann;
-  json j;
-  j["cities"] = json::array();
-  for (auto city : sol.cities_to_see) {
-    j["cities"].push_back({sol.problem->cities[city].name,
-                           sol.problem->cities[city].latitude,
-                           sol.problem->cities[city].longitude});
-  }
-  j["goal"] = sol.goal() / 1000.0;
-  s << j.dump(4);
-  return s;
-}
-
-/**
- * @brief reads solution from input stream
- *
- * overrides the >> operator, so you can write ```cin >> solution```
- */
-inline std::istream &operator>>(std::istream &s, solution_t &sol) {
-  nlohmann::json sol_json;
-  sol_json = sol_json.parse(s);
-  std::vector<city_t> cities;
-  for (auto element : sol_json["cities"]) {
-    city_t c{element[0], element[1], element[2]};
-    cities.push_back(c);
-  }
-  solution_t solnew(cities);
-  sol = solnew;
-  return s;
-}
-
-bool operator==(const alternative_solution_t &a,
-                const alternative_solution_t &b) {
-  for (unsigned i = 0; i < a.solution.size(); i++) {
-    if (a.solution.at(i) != b.solution.at(i))
-      return false;
-  }
-  return true;
-}
 
 using method_f = std::function<solution_t(std::shared_ptr<problem_t>,
                                           std::map<std::string, std::string>)>;
@@ -117,26 +72,6 @@ std::map<std::string, method_f> generate_methods_map() {
   return methods;
 }
 
-auto process_arguments = [](int argc, char **argv) {
-  using namespace std;
-  map<string, string> arguments_map;
-  for (auto a : vector<string>(argv + 1, argv + argc)) {
-    static string k = "";
-    if (a.substr(0, 1) == "-") {
-      k = string(a.begin() + 1, a.end());
-    } else
-      arguments_map[k] = a;
-  }
-  if (arguments_map.count("h") + arguments_map.count("H") +
-      arguments_map.count("help")) {
-    cout << "arguments:" << endl;
-    cout << "in [input]" << endl;
-    cout << "out [output]" << endl;
-    cout << "html [html_visualization_file_name]" << endl;
-    throw invalid_argument("help was needed");
-  }
-  return arguments_map;
-};
 /**
  * @brief Main experiment
  *

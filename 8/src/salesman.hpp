@@ -1,6 +1,9 @@
 #ifndef __SALESMAN_MHE_HPP___
 #define __SALESMAN_MHE_HPP___
 
+
+#include "json.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <list>
@@ -288,5 +291,54 @@ generate_neighbours() const {
 }
 
 };
+
+
+
+/**
+ * @brief prints solution to output stream
+ *
+ * overrides the << operator, so you can write ```cout << solution```
+ */
+inline std::ostream &operator<<(std::ostream &s, const solution_t &sol) {
+  using namespace nlohmann;
+  json j;
+  j["cities"] = json::array();
+  for (auto city : sol.cities_to_see) {
+    j["cities"].push_back({sol.problem->cities[city].name,
+                           sol.problem->cities[city].latitude,
+                           sol.problem->cities[city].longitude});
+  }
+  j["goal"] = sol.goal() / 1000.0;
+  s << j.dump(4);
+  return s;
+}
+
+/**
+ * @brief reads solution from input stream
+ *
+ * overrides the >> operator, so you can write ```cin >> solution```
+ */
+inline std::istream &operator>>(std::istream &s, solution_t &sol) {
+  nlohmann::json sol_json;
+  sol_json = sol_json.parse(s);
+  std::vector<city_t> cities;
+  for (auto element : sol_json["cities"]) {
+    city_t c{element[0], element[1], element[2]};
+    cities.push_back(c);
+  }
+  solution_t solnew(cities);
+  sol = solnew;
+  return s;
+}
+
+inline bool operator==(const alternative_solution_t &a,
+                const alternative_solution_t &b) {
+  for (unsigned i = 0; i < a.solution.size(); i++) {
+    if (a.solution.at(i) != b.solution.at(i))
+      return false;
+  }
+  return true;
+}
+
 
 #endif
