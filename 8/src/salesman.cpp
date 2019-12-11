@@ -35,44 +35,48 @@
 #include <string>
 #include <vector>
 
-auto genetic_algorithm = [](std::vector<solution_t> initial_population,
-                            auto fitness_f, auto selection_f, auto crossover_f,
-                            auto mutation_f, double crossover_probability,
-                            double mutation_probability,
-                            auto term_condition_f) {
-  using namespace std;
-  auto population = initial_population;
-  while (term_condition_f(population)) {
-    vector<double> fit;
-    vector<solution_t> parents;
-    vector<solution_t> children;
-    for (auto &specimen : population)
-      fit.push_back(fitness_f(specimen));
-    for (unsigned int i = 0; i < initial_population.size(); i++) {
-      parents.push_back(population[selection_f(fit)]);
-    }
-    for (unsigned int i = 0; i < initial_population.size(); i += 2) {
-      double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
-      if (crossover_probability < u) {
-        auto [a, b] = crossover_f(parents[i], parents[i + 1]);
-        children.push_back(a);
-        children.push_back(b);
-      } else {
-        children.push_back(parents[i]);
-        children.push_back(parents[i + 1]);
+auto genetic_algorithm =
+    [](auto initial_population, auto fitness_f, auto selection_f,
+       auto crossover_f, auto mutation_f, double crossover_probability,
+       double mutation_probability, auto term_condition_f) {
+      using namespace std;
+      auto population = initial_population;
+      while (term_condition_f(population)) {
+        vector<double> fit;                    ///< list of fitnesses
+        decltype(initial_population) parents;  ///< parents selected
+        decltype(initial_population) children; ///< offspring
+        for (auto &specimen : population)
+          fit.push_back(fitness_f(specimen)); ///< calculate fitnesses
+        /// select speciments
+        for (unsigned int i = 0; i < initial_population.size(); i++) {
+          parents.push_back(population[selection_f(fit)]);
+        }
+        /// do the crossover
+        for (unsigned int i = 0; i < initial_population.size(); i += 2) {
+          double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
+          if (crossover_probability < u) {
+            auto [a, b] = crossover_f(parents[i], parents[i + 1]);
+            children.push_back(a);
+            children.push_back(b);
+          } else {
+            children.push_back(parents[i]);
+            children.push_back(parents[i + 1]);
+          }
+        }
+        /// do the mutation
+        for (unsigned int i = 0; i < initial_population.size(); i += 2) {
+          double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
+          if (mutation_probability < u) {
+            children[i] = mutation_f(children[i]);
+          }
+        }
+        population = children;
       }
-    }
-
-    for (unsigned int i = 0; i < initial_population.size(); i += 2) {
-      double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
-      if (mutation_probability < u) {
-        children[i] = mutation_f(children[i]);
-      }
-    }
-    population = children;
-  }
-  // TODO: wybierz najlepszego
-};
+      /// return the best specimen of all
+      return *std::max_element(
+          population.begin(), population.end(),
+          [&](auto &l, auto &r) { return fitness_f(l) < fitness_f(r); });
+    };
 
 using method_f = std::function<solution_t(std::shared_ptr<problem_t>,
                                           std::map<std::string, std::string>)>;
@@ -104,6 +108,46 @@ std::map<std::string, method_f> generate_methods_map() {
     auto p0 = alternative_solution_t::of(problem, generator);
     return simulated_annealing<alternative_solution_t,
                                std::default_random_engine>(p0, generator)
+        .get_solution();
+  };
+  methods["genetic_algorithm"] = [](auto problem, auto args) -> solution_t {
+    // the size of population
+    int population_size = args.count("population_size")?stoi(args["population_size"]):10;
+    // initial population
+    std::vector<alternative_solution_t> initial_population = [problem](int n) {
+      std::vector<alternative_solution_t> pop;
+      while (n--) {
+        pop.push_back(alternative_solution_t::of(problem, generator));
+      }
+      return pop;
+    }(population_size);
+    // fitness function
+    auto fitness_f = [](alternative_solution_t specimen) {
+      return 1000.0 / (1.0 + specimen.goal());
+    };
+    // selection function from fitnesses
+    auto selection_f = [](vector<double> &fitnesses) {
+      return fitnesses.size() - 1;
+    };
+    // crossover function from
+    auto crossover_f = [](alternative_solution_t &a,
+                          alternative_solution_t &b) {
+      return std::pair<alternative_solution_t, alternative_solution_t>(a, b);
+    };
+    // mutation function working on the specimen
+    auto mutation_f = [](alternative_solution_t &a) { return a; };
+    // how probable is execution the crossover
+    double crossover_probability = args.count("crossover_probability")?stod(args["crossover_probability"]):0.9;
+    // how probable is executing the mutation
+    double mutation_probability = args.count("mutation_probability")?stod(args["mutation_probability"]):0.1;
+    // what is the termination conditino. True means continue; false means stop
+    // and finish
+    auto term_condition_f = [](std::vector<alternative_solution_t> & /*pop*/) {
+      return false;
+    };
+    return genetic_algorithm(initial_population, fitness_f, selection_f,
+                             crossover_f, mutation_f, crossover_probability,
+                             mutation_probability, term_condition_f)
         .get_solution();
   };
 
