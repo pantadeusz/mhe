@@ -40,6 +40,7 @@ auto genetic_algorithm =
        auto crossover_f, auto mutation_f, double crossover_probability,
        double mutation_probability, auto term_condition_f) {
       using namespace std;
+
       auto population = initial_population;
       while (term_condition_f(population)) {
         vector<double> fit;                    ///< list of fitnesses
@@ -52,7 +53,7 @@ auto genetic_algorithm =
           parents.push_back(population[selection_f(fit)]);
         }
         /// do the crossover
-        for (unsigned int i = 0; i < initial_population.size(); i += 2) {
+        for (int i = 0; i < (int)initial_population.size()-1; i += 2) {
           double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
           if (crossover_probability < u) {
             auto [a, b] = crossover_f(parents[i], parents[i + 1]);
@@ -63,8 +64,9 @@ auto genetic_algorithm =
             children.push_back(parents[i + 1]);
           }
         }
+
         /// do the mutation
-        for (unsigned int i = 0; i < initial_population.size(); i += 2) {
+        for (int i = 0; i < (int)initial_population.size()-1; i += 2) {
           double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
           if (mutation_probability < u) {
             children[i] = mutation_f(children[i]);
@@ -125,25 +127,61 @@ std::map<std::string, method_f> generate_methods_map() {
     auto fitness_f = [](alternative_solution_t specimen) {
       return 1000.0 / (1.0 + specimen.goal());
     };
+
+
+
+
+
     // selection function from fitnesses
     auto selection_f = [](vector<double> &fitnesses) {
-      return fitnesses.size() - 1;
+      int first = std::uniform_int_distribution<int>(0, fitnesses.size() - 1)(generator);
+      
+      int second = std::uniform_int_distribution<int>(0, fitnesses.size() - 1)(generator);
+      return (fitnesses[first] > fitnesses[second])?first:second;
     };
+    
+    
+    
+    
+    
     // crossover function from
     auto crossover_f = [](alternative_solution_t &a,
                           alternative_solution_t &b) {
-      return std::pair<alternative_solution_t, alternative_solution_t>(a, b);
+      int cross_point = std::uniform_int_distribution<int>(0, a.solution.size() - 1)(generator);
+      auto new_a = a;
+      auto new_b = b;
+  
+      for (int i = cross_point; i < (int)a.solution.size(); i++) {
+        new_a.solution[i] = b.solution[i];
+        new_b.solution[i] = a.solution[i];
+      }
+      return pair<alternative_solution_t, alternative_solution_t>(new_a, new_b);
     };
     // mutation function working on the specimen
-    auto mutation_f = [](alternative_solution_t &a) { return a; };
+    auto mutation_f = [](alternative_solution_t &a) {
+      int mut_point = 
+        uniform_int_distribution<int>(0, a.solution.size() - 2)(generator);
+      auto new_a = a;
+      new_a.solution[mut_point] = uniform_int_distribution<int>(0, 
+        (a.solution.size() -1)-mut_point)(generator);
+      //cout << "before: " << (a.goal()/1000.0) << 
+      //    " after: " << (new_a.goal()/1000.0) << endl;
+      return new_a;
+    };
     // how probable is execution the crossover
     double crossover_probability = args.count("crossover_probability")?stod(args["crossover_probability"]):0.9;
     // how probable is executing the mutation
     double mutation_probability = args.count("mutation_probability")?stod(args["mutation_probability"]):0.1;
     // what is the termination conditino. True means continue; false means stop
     // and finish
-    auto term_condition_f = [](std::vector<alternative_solution_t> & /*pop*/) {
-      return false;
+    shared_ptr<int> iteration_count = make_shared<int>(args.count("iteration_count")?stoi(args["iteration_count"]):10);
+    auto term_condition_f = [iteration_count](std::vector<alternative_solution_t> & pop) {
+      for (auto &s:  pop) {
+        cout << (s.goal()/1000.0) << " ";
+      }
+      cout << endl;
+
+      return (*iteration_count)--;
     };
     return genetic_algorithm(initial_population, fitness_f, selection_f,
                              crossover_f, mutation_f, crossover_probability,
