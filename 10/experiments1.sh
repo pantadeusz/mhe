@@ -1,12 +1,12 @@
 #!/bin/bash
 
-EXECUTABLE_NAME=./build_experiment/salesman
+EXECUTABLE_NAME=./build_experiment/salesman_opt
 # ARGC="-std=c++17"
 # g++ $ARGC salesman.cpp -o $EXECUTABLE_NAME
 mkdir -p build_experiment
 cd build_experiment
 cmake ..
-make salesman
+make $(basename $EXECUTABLE_NAME)
 cd ..
 METHODS_TO_TEST=`$EXECUTABLE_NAME -method list 2> /dev/null`
 echo $METHODS_TO_TEST

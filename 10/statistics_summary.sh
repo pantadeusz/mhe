@@ -34,7 +34,7 @@ echo "set output \"output_chart_times.png\"" >> output_chart.plt
 echo "set logscale y 2" >> output_chart.plt
 echo -n "plot " >> output_chart.plt 
 for method in $METHODS_TO_TEST; do
-cat /tmp/stats__190865.txt | grep $method > output_stats__$method.txt 
+cat /tmp/stats__190865.txt | grep "$method " > output_stats__$method.txt 
 echo -n "'output_stats__${method}.txt' using 2:6 w lines title \"$method\" , " >> output_chart.plt 
 done
 echo "" >> output_chart.plt
