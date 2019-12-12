@@ -17,6 +17,7 @@
 #include "helper.hpp"
 
 #include "brute.hpp"
+#include "geneticalgorithm.hpp"
 #include "hillclimb.hpp"
 #include "simulatedannealing.hpp"
 #include "tabu.hpp"
@@ -35,42 +36,6 @@
 #include <string>
 #include <vector>
 
-auto genetic_algorithm = [](auto initial_population, auto fitness_f,
-                            auto selection_f, auto crossover_f, auto mutation_f,
-                            auto term_condition_f) {
-  using namespace std;
-
-  auto population = initial_population;
-  int iteration = 0;
-  while (term_condition_f(population, iteration++)) {
-    vector<double> fit;                    ///< list of fitnesses
-    decltype(initial_population) parents;  ///< parents selected
-    decltype(initial_population) children; ///< offspring
-    for (auto &specimen : population)
-      fit.push_back(fitness_f(specimen)); ///< calculate fitnesses
-    /// select speciments
-    for (unsigned int i = 0; i < initial_population.size(); i++) {
-      parents.push_back(population[selection_f(fit)]);
-    }
-    /// do the crossover
-    for (int i = 0; i < (int)initial_population.size() - 1; i += 2) {
-      auto [a, b] = crossover_f(parents[i], parents[i + 1]);
-      children.push_back(a);
-      children.push_back(b);
-    }
-
-    /// do the mutation
-    for (int i = 0; i < (int)initial_population.size() - 1; i += 2) {
-      children[i] = mutation_f(children[i]);
-    }
-    population = children;
-  }
-  /// return the best specimen of all
-  return *std::max_element(
-      population.begin(), population.end(),
-      [&](auto &l, auto &r) { return fitness_f(l) < fitness_f(r); });
-};
-
 auto crossover_one_point = [](auto &a, auto &b) {
   using namespace std;
   int cross_point =
@@ -88,11 +53,11 @@ auto crossover_one_point = [](auto &a, auto &b) {
 /**
  * the mutation that flips one random bit/gene
  * */
-auto mutation_one_bit_flip = [](auto &a,
-                                double mutation_probability) -> decltype(a) {
+auto mutation_change_one_city_descending =
+    [](auto &a, double mutation_probability) -> decltype(a) {
   using namespace std;
   double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
-  if (mutation_probability < u) {
+  if (u < mutation_probability) {
     int mut_point =
         uniform_int_distribution<int>(0, a.solution.size() - 2)(generator);
     decltype(a) new_a = a;
@@ -110,12 +75,13 @@ auto mutation_factory = [](std::string mutation_name,
   auto default_mutation =
       [mutation_probability](
           decltype(example_solution) &a) -> decltype(example_solution) {
-    return mutation_one_bit_flip(a, mutation_probability);
+    return mutation_change_one_city_descending(a, mutation_probability);
   };
-  if (mutation_name == "mutation_one_bit_flip") {
+  if (mutation_name == "mutation_change_one_city_descending") {
     return default_mutation;
   } else {
-    std::cerr << "[WW] falling back to default mutation: mutation_one_bit_flip"
+    std::cerr << "[WW] falling back to default mutation: "
+                 "mutation_change_one_city_descending"
               << std::endl;
     return default_mutation;
   }
@@ -129,7 +95,7 @@ auto crossover_factory = [](std::string crossover_name,
                                decltype(example_solution) &a,
                                decltype(example_solution) &b) {
     double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
-    if (crossover_probability < u) {
+    if (u < crossover_probability) {
       return crossover_one_point(a, b);
     } else {
       return pair<decltype(example_solution), decltype(example_solution)>(a, b);
@@ -144,22 +110,64 @@ auto crossover_factory = [](std::string crossover_name,
   }
 };
 
-auto term_condition_factory = [](auto args) {
+auto standard_deviation = [](auto const &func) -> double {
   using namespace std;
+  double mean = accumulate(func.begin(), func.end(), 0.0) / func.size();
+  double sq_sum =
+      inner_product(func.begin(), func.end(), func.begin(), 0.0, std::plus<>(),
+                    [mean](double const &x, double const &y) {
+                      return (x - mean) * (y - mean);
+                    });
+  return sqrt(sq_sum / (func.size() - 1));
+};
+
+auto term_condition_factory = [](auto args, auto example_solution) {
+  using namespace std;
+  /// for debugging purposes - we can print the population if the parameter
+  /// print_population_stats is set to true
+  auto print_population = (args["print_population_stats"] == "true")?[](vector<decltype(example_solution)> &pop,
+                             vector<double> &fit, int iteration) {
+    cout << iteration << 
+    " " << *max_element(fit.begin(), fit.end()) << 
+    " " << (accumulate(fit.begin(), fit.end(), 0.0) / (double)fit.size()) << 
+    " " << standard_deviation(fit) << " ";   
+    for (unsigned i = 0; i < pop.size(); i++) {
+      cout << " " << (pop[i].goal() / 1000.0)<<":" << fit[i];
+    }
+    cout << endl;
+  }:[](vector<decltype(example_solution)> &,
+                          vector<double> &, int){};
+  /// default iteration count is 10. We can set it
   int iteration_count =
       args.count("iteration_count") ? stoi(args["iteration_count"]) : 10;
-  auto default_tc = [iteration_count](std::vector<alternative_solution_t> &pop,
-                                      int iteration) {
-    //for (auto &s : pop) {
-    //  cout << (s.goal() / 1000.0) << " ";
-    //}
-    //cout << endl;
-
+  auto default_tc = [iteration_count,
+                     print_population](vector<decltype(example_solution)> &pop,
+                                       vector<double> &fit, int iteration) {
+    print_population(pop, fit, iteration);
     return iteration < iteration_count;
   };
   return default_tc;
 };
+auto tournament_selection = [](std::vector<double> &fitnesses) -> int {
+  int first =
+      std::uniform_int_distribution<int>(0, fitnesses.size() - 1)(generator);
 
+  int second =
+      std::uniform_int_distribution<int>(0, fitnesses.size() - 1)(generator);
+  return (fitnesses[first] > fitnesses[second]) ? first : second;
+};
+
+auto roulette_selection = [](std::vector<double> &/*fitnesses*/) -> int {
+  throw std::invalid_argument("roulette_selection unimplemented yet");
+};
+
+auto selection_factory = [](std::string selection_name, auto /*args*/) -> std::function<int(std::vector<double> &fit)> {
+  if (selection_name == "tournament_selection")
+    return tournament_selection;
+  else if (selection_name == "roulette_selection")
+    return roulette_selection;
+  return tournament_selection; ///< default
+};
 using method_f = std::function<solution_t(std::shared_ptr<problem_t>,
                                           std::map<std::string, std::string>)>;
 
@@ -206,23 +214,19 @@ std::map<std::string, method_f> generate_methods_map() {
     }(population_size);
     // fitness function
     auto fitness_f = [](alternative_solution_t specimen) {
-      return 1000.0 / (1.0 + specimen.goal());
+      return 10000000.0 / (1.0 + specimen.goal());
     };
 
     // selection function from fitnesses
-    auto selection_f = [](vector<double> &fitnesses) {
-      int first = std::uniform_int_distribution<int>(0, fitnesses.size() -
-                                                            1)(generator);
-
-      int second = std::uniform_int_distribution<int>(0, fitnesses.size() -
-                                                             1)(generator);
-      return (fitnesses[first] > fitnesses[second]) ? first : second;
-    };
+    auto selection_f = selection_factory(
+        args.count("selection") ? args["selection"] : "tournament_selection",
+        args);
 
     // how probable is execution the crossover
     double crossover_probability = args.count("crossover_probability")
                                        ? stod(args["crossover_probability"])
                                        : 0.9;
+
     // how probable is executing the mutation
     double mutation_probability = args.count("mutation_probability")
                                       ? stod(args["mutation_probability"])
@@ -233,12 +237,13 @@ std::map<std::string, method_f> generate_methods_map() {
         "crossover_one_point", crossover_probability, initial_population.at(0));
     // mutation function working on the specimen
     auto mutation_f =
-        mutation_factory("mutation_one_bit_flip", mutation_probability,
-                         initial_population.at(0));
+        mutation_factory("mutation_change_one_city_descending",
+                         mutation_probability, initial_population.at(0));
     // what is the termination conditino. True means continue; false means stop
     // and finish
 
-    auto term_condition_f = term_condition_factory(args);
+    auto term_condition_f =
+        term_condition_factory(args, initial_population.at(0));
 
     return genetic_algorithm(initial_population, fitness_f, selection_f,
                              crossover_f, mutation_f, term_condition_f)

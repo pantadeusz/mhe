@@ -81,7 +81,7 @@ public:
    * @brief cities indices.
    * The order in wich we would like to see every city
    */
-  std::vector<int> cities_to_see;
+  std::vector<int> solution;
 
   /**
    * @brief Construct a new solution_t object
@@ -93,9 +93,9 @@ public:
    */
   solution_t(const std::vector<city_t> input_cities)
       : problem(std::make_shared<problem_t>(problem_t{input_cities})),
-        cities_to_see(input_cities.size()) {
-    for (unsigned i = 0; i < cities_to_see.size(); i++)
-      cities_to_see[i] = i;
+        solution(input_cities.size()) {
+    for (unsigned i = 0; i < solution.size(); i++)
+      solution[i] = i;
   };
 
   /**
@@ -105,7 +105,7 @@ public:
    */
   solution_t()
       : problem(std::make_shared<problem_t>(problem_t{std::vector<city_t>()})),
-        cities_to_see(0){};
+        solution(0){};
   /**
    * @brief Construct a new solution t object
    * It takes shared pointer to the problem definition. This way we don't have
@@ -113,9 +113,9 @@ public:
    * @param problem_ the problem smartpointer
    */
   solution_t(std::shared_ptr<problem_t> problem_)
-      : problem(problem_), cities_to_see(problem_->cities.size()) {
-    for (unsigned i = 0; i < cities_to_see.size(); i++)
-      cities_to_see[i] = i;
+      : problem(problem_), solution(problem_->cities.size()) {
+    for (unsigned i = 0; i < solution.size(); i++)
+      solution[i] = i;
   };
 
   /**
@@ -129,8 +129,8 @@ public:
   double goal() const {
     double sum = 0.0;
     auto prev_city =
-        cities_to_see.back(); // we must come back, so include the last city
-    for (auto city : cities_to_see) { // now walk between cities
+        solution.back(); // we must come back, so include the last city
+    for (auto city : solution) { // now walk between cities
       sum += problem->cities[city].distance(problem->cities[prev_city]);
       prev_city = city;
     }
@@ -144,7 +144,7 @@ public:
    */
   solution_t next_solution() const {
     auto p = *this;
-    std::next_permutation(p.cities_to_see.begin() + 1, p.cities_to_see.end());
+    std::next_permutation(p.solution.begin() + 1, p.solution.end());
     return p;
   };
 
@@ -160,13 +160,13 @@ public:
     if (this->problem !=
         other.problem) // is the problem the same (pointers the same)
       return false;
-    if (other.cities_to_see.size() !=
-        cities_to_see.size()) // do we have same number of cities
+    if (other.solution.size() !=
+        solution.size()) // do we have same number of cities
       throw std::invalid_argument(
           "cities count must be the same - problem in solution! check "
           "initializers and data consistency");
-    for (unsigned i = 0; i < cities_to_see.size(); i++) { // check the cities order
-      if (other.cities_to_see[i] != cities_to_see[i])
+    for (unsigned i = 0; i < solution.size(); i++) { // check the cities order
+      if (other.solution[i] != solution[i])
         return false;
     }
     return true;
@@ -223,7 +223,7 @@ public:
     for (unsigned i = 0; i < solution.size(); i++)
       indexes[i] = i;
     for (unsigned i = 0; i < solution.size(); i++) {
-      ret.cities_to_see[i] = indexes[solution[i]];
+      ret.solution[i] = indexes[solution[i]];
       indexes.erase(indexes.begin() + solution[i]); // remove i-th element
     }
     return ret;
@@ -236,7 +236,7 @@ public:
    * */
   alternative_solution_t &set_solution(solution_t s) {
     using namespace std;
-    auto solc = s.cities_to_see;
+    auto solc = s.solution;
     std::list<int> indices_list;
     solution.clear();
     int idx = solc.size();
@@ -303,7 +303,7 @@ inline std::ostream &operator<<(std::ostream &s, const solution_t &sol) {
   using namespace nlohmann;
   json j;
   j["cities"] = json::array();
-  for (auto city : sol.cities_to_see) {
+  for (auto city : sol.solution) {
     j["cities"].push_back({sol.problem->cities[city].name,
                            sol.problem->cities[city].latitude,
                            sol.problem->cities[city].longitude});
