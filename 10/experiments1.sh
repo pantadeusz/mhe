@@ -26,7 +26,14 @@ for i in `seq 1 $repeat_count`; do
         if [ "$method" != "$brute_force_string" ]; then
         echo "$EXECUTABLE_NAME -in $input_file -out $output_file -method $method -population_size 220 -iteration_count 50 -mutation_probability 0.1"
         #echo "$EXECUTABLE_NAME -in $input_file -out $output_file -method $method 2> $output_file_txt"
-        $EXECUTABLE_NAME -in $input_file -out $output_file -method $method -population_size 220 -iteration_count 50 -mutation_probability 0.1 2> $output_file_txt
+
+        $EXECUTABLE_NAME -in $input_file -out $output_file -method $method \
+           -population_size 220 -iteration_count 50 \
+           -mutation_probability 0.1\
+           -crossover_probability 0.7 \
+            -crossover crossover_two_point \
+            -selection rank_selection \
+            2> $output_file_txt
         fi
         brute_force_string="brute_force_find_solution"
     done

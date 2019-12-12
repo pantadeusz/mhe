@@ -50,6 +50,24 @@ auto crossover_one_point = [](auto &a, auto &b) {
   return pair<alternative_solution_t, alternative_solution_t>(new_a, new_b);
 };
 
+auto crossover_two_point = [](auto &a, auto &b) {
+  using namespace std;
+  int cross_point_a =
+      uniform_int_distribution<int>(0, a.solution.size() - 1)(generator);
+  int cross_point_b =
+      uniform_int_distribution<int>(0, a.solution.size() - 1)(generator);
+  if (cross_point_a > cross_point_b)
+    swap(cross_point_a, cross_point_b);
+  auto new_a = a;
+  auto new_b = b;
+
+  for (int i = cross_point_a; i < cross_point_b; i++) {
+    new_a.solution[i] = b.solution[i];
+    new_b.solution[i] = a.solution[i];
+  }
+  return pair<alternative_solution_t, alternative_solution_t>(new_a, new_b);
+};
+
 /**
  * the mutation that flips one random bit/gene
  * */
@@ -88,8 +106,10 @@ auto mutation_factory = [](std::string mutation_name,
 };
 
 auto crossover_factory = [](std::string crossover_name,
-                            double crossover_probability,
-                            auto example_solution) {
+                            double crossover_probability, auto example_solution)
+    -> std::function<
+        std::pair<decltype(example_solution), decltype(example_solution)>(
+            decltype(example_solution) &a, decltype(example_solution) &b)> {
   using namespace std;
   auto default_crossover = [crossover_probability](
                                decltype(example_solution) &a,
@@ -103,6 +123,17 @@ auto crossover_factory = [](std::string crossover_name,
   };
   if (crossover_name == "crossover_one_point") {
     return default_crossover;
+  } else if (crossover_name == "crossover_two_point") {
+    return [crossover_probability](decltype(example_solution) &a,
+                                   decltype(example_solution) &b) {
+      double u = uniform_real_distribution<double>(0.0, 1.0)(generator);
+      if (u < crossover_probability) {
+        return crossover_two_point(a, b);
+      } else {
+        return pair<decltype(example_solution), decltype(example_solution)>(a,
+                                                                            b);
+      }
+    };
   } else {
     std::cerr << "[WW] falling back to default crossover: crossover_one_point"
               << std::endl;
@@ -157,15 +188,45 @@ auto tournament_selection = [](std::vector<double> &fitnesses) -> int {
   return (fitnesses[first] > fitnesses[second]) ? first : second;
 };
 
-auto roulette_selection = [](std::vector<double> &/*fitnesses*/) -> int {
-  throw std::invalid_argument("roulette_selection unimplemented yet");
+auto roulette_selection = [](std::vector<double> & fitnesses) -> int {
+  using namespace std;
+
+  double sum_fit = accumulate(fitnesses.begin(),fitnesses.end(), 0.0);
+  double u = uniform_real_distribution<double>(0.0, sum_fit)(generator);
+  for (int i = (int)(fitnesses.size()-1); i >= 0 ; i--) {
+    sum_fit -= fitnesses[i];
+    if (sum_fit <= u) return i;
+  }
+  return 0;
 };
 
-auto selection_factory = [](std::string selection_name, auto /*args*/) -> std::function<int(std::vector<double> &fit)> {
+auto rank_selection = [](std::vector<double> & fitnesses) -> int {
+  using namespace std;
+
+  vector<pair<double,int>> fitnesses_with_index;
+  for (unsigned int i = 0; i < fitnesses.size(); i++) {
+    fitnesses_with_index.push_back({fitnesses[i],i});
+  }
+  sort(fitnesses_with_index.begin(),fitnesses_with_index.end(),
+  [](auto &a, auto &b){
+    return a.first < b.first;
+  });
+  std::vector<double> fit_new(fitnesses.size());
+  for (unsigned int i = 0; i < fitnesses.size(); i++) {
+    fit_new[i] = i+1;
+  }
+  return fitnesses_with_index[roulette_selection(fit_new)].second;
+};
+
+auto selection_factory =
+    [](std::string selection_name,
+       auto /*args*/) -> std::function<int(std::vector<double> &fit)> {
   if (selection_name == "tournament_selection")
     return tournament_selection;
   else if (selection_name == "roulette_selection")
     return roulette_selection;
+  else if (selection_name == "rank_selection")
+    return rank_selection;
   return tournament_selection; ///< default
 };
 using method_f = std::function<solution_t(std::shared_ptr<problem_t>,
@@ -212,6 +273,7 @@ std::map<std::string, method_f> generate_methods_map() {
       }
       return pop;
     }(population_size);
+
     // fitness function
     auto fitness_f = [](alternative_solution_t specimen) {
       return 10000000.0 / (1.0 + specimen.goal());
@@ -234,14 +296,15 @@ std::map<std::string, method_f> generate_methods_map() {
 
     // crossover function from
     auto crossover_f = crossover_factory(
-        "crossover_one_point", crossover_probability, initial_population.at(0));
+        args.count("crossover")? args["crossover"]:"crossover_one_point", 
+        crossover_probability, initial_population.at(0));
     // mutation function working on the specimen
     auto mutation_f =
         mutation_factory("mutation_change_one_city_descending",
                          mutation_probability, initial_population.at(0));
+
     // what is the termination conditino. True means continue; false means stop
     // and finish
-
     auto term_condition_f =
         term_condition_factory(args, initial_population.at(0));
 
