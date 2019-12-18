@@ -130,8 +130,7 @@ auto crossover_factory = [](std::string crossover_name,
       if (u < crossover_probability) {
         return crossover_two_point(a, b);
       } else {
-        return pair<decltype(example_solution), decltype(example_solution)>(a,
-                                                                            b);
+        return pair<decltype(example_solution), decltype(example_solution)>(a, b);
       }
     };
   } else {
@@ -179,7 +178,8 @@ auto term_condition_factory = [](auto args, auto example_solution) {
   };
   return default_tc;
 };
-auto tournament_selection = [](std::vector<double> &fitnesses) -> int {
+
+auto tournament_selection = [](std::vector<double> &fitnesses, int /*iteration*/) -> int {
   int first =
       std::uniform_int_distribution<int>(0, fitnesses.size() - 1)(generator);
 
@@ -191,10 +191,14 @@ auto tournament_selection = [](std::vector<double> &fitnesses) -> int {
 /**
  * roulette selection
  * */
-auto roulette_selection = [](std::vector<double> & fitnesses) -> int {
+auto roulette_selection = [](std::vector<double> & fitnesses, int iteration) -> int {
   using namespace std;
-
-  double sum_fit = accumulate(fitnesses.begin(),fitnesses.end(), 0.0);
+  static int prev_iteration = 0;
+  static double sum_fit = accumulate(fitnesses.begin(),fitnesses.end(), 0.0);
+  if (prev_iteration != iteration) { // only calculate summary fitness if the iteration is changed
+    prev_iteration = iteration;
+    sum_fit = accumulate(fitnesses.begin(),fitnesses.end(), 0.0); // optimization
+  }
   double u = uniform_real_distribution<double>(0.0, sum_fit)(generator);
   for (int i = (int)(fitnesses.size()-1); i >= 0 ; i--) {
     sum_fit -= fitnesses[i];
@@ -206,7 +210,7 @@ auto roulette_selection = [](std::vector<double> & fitnesses) -> int {
 /**
  * selekcja rangowa
  * */
-auto rank_selection = [](std::vector<double> & fitnesses) -> int {
+auto rank_selection = [](std::vector<double> & fitnesses, int iteration) -> int {
   using namespace std;
 
   vector<pair<double,int>> fitnesses_with_index;
@@ -221,12 +225,12 @@ auto rank_selection = [](std::vector<double> & fitnesses) -> int {
   for (unsigned int i = 0; i < fitnesses.size(); i++) {
     fit_new[i] = i+1;
   }
-  return fitnesses_with_index[roulette_selection(fit_new)].second;
+  return fitnesses_with_index[roulette_selection(fit_new,iteration)].second;
 };
 
 auto selection_factory =
     [](std::string selection_name,
-       auto /*args*/) -> std::function<int(std::vector<double> &fit)> {
+       auto /*args*/) -> std::function<int(std::vector<double> &fit, int)> {
   if (selection_name == "tournament_selection")
     return tournament_selection;
   else if (selection_name == "roulette_selection")
