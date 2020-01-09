@@ -30,6 +30,7 @@ auto genetic_algorithm = [](auto initial_population, auto &fitness_f,
   auto population = initial_population;
   int iteration = 0;
   vector<double> fit(initial_population.size()); ///< list of fitnesses
+  #pragma omp parallel for
   for (unsigned i = 0; i < fit.size(); i++)
     fit[i] = fitness_f(population[i]); ///< calculate fitnesses
 
@@ -37,6 +38,7 @@ auto genetic_algorithm = [](auto initial_population, auto &fitness_f,
     decltype(initial_population) parents(initial_population.size());  ///< parents selected
     decltype(initial_population) children(initial_population.size()); ///< offspring
     /// select speciments
+    // (option) #pragma omp parallel for
     for (unsigned int i = 0; i < initial_population.size(); i++) {
       parents[i] = population[selection_f(fit, iteration)];
     }
@@ -51,6 +53,7 @@ auto genetic_algorithm = [](auto initial_population, auto &fitness_f,
       children[i] = mutation_f(children[i]);
     }
     population = children;
+    #pragma omp parallel for
     for (unsigned i = 0; i < fit.size(); i++)
       fit[i] = fitness_f(population[i]); ///< calculate fitnesses
   }

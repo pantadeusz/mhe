@@ -35,6 +35,7 @@
 #include <numeric>
 #include <string>
 #include <vector>
+#include <mutex>
 
 /*
  The things that are required for Genetic Algorithm
@@ -243,6 +244,7 @@ auto tournament_selection = [](std::vector<double> &fitnesses,
 /**
  * roulette selection
  * */
+// (option) std::mutex roulette_selection_mutex;
 auto roulette_selection = [](std::vector<double> &fitnesses,
                              int iteration) -> int {
   using namespace std;
@@ -254,7 +256,12 @@ auto roulette_selection = [](std::vector<double> &fitnesses,
     sum_fit =
         accumulate(fitnesses.begin(), fitnesses.end(), 0.0); // optimization
   }
-  double u = uniform_real_distribution<double>(0.0, sum_fit)(generator);
+
+  double u = 0.0;
+  //(option) {
+  //(option)   lock_guard<mutex> guard(roulette_selection_mutex);
+    u = uniform_real_distribution<double>(0.0, sum_fit)(generator);
+  //(option) }
   for (int i = (int)(fitnesses.size() - 1); i >= 0; i--) {
     sum_fit -= fitnesses[i];
     if (sum_fit <= u)
