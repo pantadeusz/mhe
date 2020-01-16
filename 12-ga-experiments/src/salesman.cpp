@@ -335,7 +335,7 @@ std::map<std::string, method_f> generate_methods_map() {
   methods["genetic_algorithm"] = [](auto problem, auto args) -> solution_t {
     // the size of population
     int population_size =
-        args.count("population_size") ? stoi(args["population_size"]) : 10;
+        args.count("population_size") ? stoi(args["population_size"]) : 500;
     // initial population
     std::vector<alternative_solution_t> initial_population = [problem](int n) {
       std::vector<alternative_solution_t> pop;
@@ -358,7 +358,7 @@ std::map<std::string, method_f> generate_methods_map() {
     // how probable is execution the crossover
     double crossover_probability = args.count("crossover_probability")
                                        ? stod(args["crossover_probability"])
-                                       : 0.9;
+                                       : 0.8;
 
     // how probable is executing the mutation
     double mutation_probability = args.count("mutation_probability")
@@ -367,7 +367,7 @@ std::map<std::string, method_f> generate_methods_map() {
 
     // crossover function from
     auto crossover_f = crossover_factory<alternative_solution_t>(
-        args.count("crossover") ? args["crossover"] : "crossover_one_point",
+        args.count("crossover") ? args["crossover"] : "crossover_two_point",
         crossover_probability);
     // mutation function working on the specimen
     auto mutation_f = mutation_factory<decltype(initial_population.at(0))>(
