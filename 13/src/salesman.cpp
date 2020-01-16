@@ -382,6 +382,57 @@ std::map<std::string, method_f> generate_methods_map() {
                              *crossover_f, *mutation_f, term_condition_f)
         .get_solution();
   };
+methods["island_model_ga"] = [](auto problem, auto args) -> solution_t {
+    // the size of population
+    int population_size =
+        args.count("population_size") ? stoi(args["population_size"]) : 500;
+    // initial population
+    std::vector<alternative_solution_t> initial_population = [problem](int n) {
+      std::vector<alternative_solution_t> pop;
+      while (n--) {
+        pop.push_back(alternative_solution_t::of(problem, generator));
+      }
+      return pop;
+    }(population_size);
+
+    // fitness function
+    auto fitness_f = [](alternative_solution_t specimen) {
+      return 10000000.0 / (1.0 + specimen.goal());
+    };
+
+    // selection function from fitnesses
+    auto selection_f = selection_factory(
+        args.count("selection") ? args["selection"] : "tournament_selection",
+        args);
+
+    // how probable is execution the crossover
+    double crossover_probability = args.count("crossover_probability")
+                                       ? stod(args["crossover_probability"])
+                                       : 0.8;
+
+    // how probable is executing the mutation
+    double mutation_probability = args.count("mutation_probability")
+                                      ? stod(args["mutation_probability"])
+                                      : 0.1;
+
+    // crossover function from
+    auto crossover_f = crossover_factory<alternative_solution_t>(
+        args.count("crossover") ? args["crossover"] : "crossover_two_point",
+        crossover_probability);
+    // mutation function working on the specimen
+    auto mutation_f = mutation_factory<decltype(initial_population.at(0))>(
+        "mutation_change_one_city_descending", mutation_probability);
+
+    // what is the termination conditino. True means continue; false means
+    // stop and finish
+    auto term_condition_f =
+        term_condition_factory(args, initial_population.at(0));
+
+    return island_model_ga(initial_population, fitness_f, selection_f,
+                             *crossover_f, *mutation_f, 100, 5)
+        .get_solution();
+  };
+  //island_model_ga
 
   return methods;
 }
