@@ -19,7 +19,7 @@ auto solve_sat = [](auto fun, int n) -> vector<bool> {
   for (unsigned long long i = 0; i < (1 << n); i++) {
     vector<bool> x(n); // zmienne zdaniowe
     for (int p = 0; p < n; p++) {
-      x[p] = (i & (1 << p)) != 0; // przypisujemy odpowiednio prawdę lub fausz w
+      x[p] = (i & (1 << p)) != 0; // przypisujemy odpowiednio prawdę lub fałsz w
                                   // zależności od wartości bitu na
       // zadanej pozycji p
     }
@@ -48,5 +48,5 @@ int main(int argc, char **argv) {
   vector<bool> x(stoi(argv[1])); // zmienne zdaniowe
   cout << "wynik sat( " << stoi(argv[1]) << " ): " << (x = solve_sat(f2, stoi(argv[1]))) << endl;
   cout << "wyrażenie jest spełnialne ( " << stoi(argv[1]) << " ): " << x << " daje " << f2(x) << endl;
-    
+  return 0;
 }
