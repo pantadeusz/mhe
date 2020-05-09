@@ -1,0 +1,10 @@
+digraph D {
+
+  A [pos="1,1!" shape=box]
+  B [pos="10,10!" shape=box]
+  C [pos="10,1!" shape=box]
+
+  A -> B
+  A -> C
+  
+}

@@ -1,0 +1,17 @@
+{
+"problem":[
+    {"x":1,"y":2,"name":"bla"},
+    {"x":5.0,"y":1.0, "name":"Kościerzyna"},
+    {"x":5.0,"y":1.0, "name":"Kościerzyna"},
+    {"x":5.0,"y":1.0, "name":"Kościerzyna"},
+    {"x":5.0,"y":1.0, "name":"Kościerzyna"},
+    {"x":5.0,"y":1.0, "name":"Kościerzyna"},
+    {"x":5.0,"y":1.0, "name":"Kościerzyna"},
+    {"x":5.0,"y":1.0, "name":"Kościerzyna"},
+    {"x":5.0,"y":1.0, "name":"Kościerzyna"},
+    {"x":5.0,"y":1.0, "name":"Kościerzyna"},
+    {"x":5.0,"y":1.0, "name":"Kościerzyna"},
+    {"x":2.0,"y":10.5, "name":"Piekło Dolne"},
+    {"x":20.0,"y":10.0, "name":"Złe Mięso"}
+]
+}
