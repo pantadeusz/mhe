@@ -68,21 +68,28 @@ tsp_solution_t next_solution(tsp_solution_t sol) {
   return sol;
 };
 
+/**
+ * generuje losowe rozwiązanie na podstawie podanego zadania
+ * */
 tsp_solution_t randomize_solution(tsp_solution_t initial_problem) {
   using namespace std;
   static random_device rd;
   static mt19937 gen(rd());
   // wygenerujmy sekwencję od 0 do liczba_miast-1
   vector<int> cities(initial_problem.problem->size());
-  std::iota (std::begin(cities), std::end(cities), 0);
+  std::iota(std::begin(cities), std::end(cities), 0);
   // miasta do odwiedzenia - czyścimy
   initial_problem.cities_to_see.clear();
   // generujemy losową kolejność
-  std::random_shuffle ( cities.begin(), cities.end(), [](int i){return gen()%i;});
+  std::random_shuffle(cities.begin(), cities.end(),
+                      [](int i) { return gen() % i; });
   initial_problem.cities_to_see = cities;
   return initial_problem;
 };
 
+/**
+ * Generuje zbiór (tablicę) sąsiadów bieżącego rozwiązania
+ * */
 std::vector<tsp_solution_t> get_close_solutions(const tsp_solution_t sol0) {
   auto sol = sol0;
   std::vector<tsp_solution_t> ret;
