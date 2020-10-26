@@ -1,0 +1,5 @@
+SforneGacie 10 20
+Janiszewo 20 20
+ZleMieso 11 15
+Grudziadz 20 21
+-
