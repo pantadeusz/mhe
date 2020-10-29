@@ -84,7 +84,7 @@ public:
             sum += problem->at(at(i)).dist(problem->at(at((i + 1) % size())));
         }
         return sum;
-    } 
+    }
 
     /**
      * Oblicza kolejne możliwe rozwiązanie. Ta metoda ma taką cechę, że 
@@ -157,6 +157,8 @@ std::ostream &operator<<(std::ostream &o, Solution &s)
 int main()
 {
     using namespace std;
+    vector<vector<char>> field(3, vector<char>(4));
+
     auto problem = make_shared<Problem>();
     Solution sol;
     cin >> (*problem);
