@@ -73,17 +73,16 @@ Solution Solution::generate_random_neighbour(std::mt19937 &mt) const
     using namespace std;
     uniform_int_distribution<int> uni((unsigned long)0, size() - 1);
     uniform_int_distribution<int> incdec(0, 1);
-    Solution s = *this;
+    //Solution s = *this;
     //std::swap(s[uni(mt)], s[uni(mt)]);
     if (incdec(mt) == 0)
     {
-        inc_axis(uni(mt));
+        return inc_axis(uni(mt));
     }
     else
     {
-        dec_axis(uni(mt));
+        return dec_axis(uni(mt));
     }
-    return s;
 }
 
 void Solution::randomize(std::mt19937 &mt)

@@ -6,10 +6,10 @@ OBJECTS    := ${SOURCES:.cpp=.o}
 all: mhe
 
 mhe: $(OBJECTS)
-	g++ -std=c++14 $^ -o $@
+	g++ -O3 -std=c++14 $^ -o $@
 
 %.o: %.cpp
-	gcc -std=c++14 -c $< -o $@
+	gcc -O3 -std=c++14 -c $< -o $@
 
 clean:
 	rm -f *.o mhe
