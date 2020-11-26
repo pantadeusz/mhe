@@ -244,8 +244,6 @@ std::map<std::string, std::string> process_args(int argc, char **argv)
 }
 
 
-
-
 /**
  * Funkcja main która implementuje aktualnie rozwiązanie metodą pełnego przeglądu.
  * */

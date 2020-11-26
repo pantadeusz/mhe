@@ -37,8 +37,29 @@ void Solution::set_problem(std::shared_ptr<Problem> p)
     problem = p;
     this->resize(p->size());
     for (int i = 0; i < size(); i++)
-        (*this)[i] = i;
+        (*this)[i] = 0;
 }
+
+std::vector<int> to_path(const std::vector<int> &ordrepr)
+{
+    using namespace std;
+    vector<int> order;
+    for (int i = 0; i < ordrepr.size(); i++)
+    {
+        order.push_back(i);
+    }
+
+    vector<int> path;
+
+    // pobieramy kolejne wartości z reprezentacji porządkowej
+    for (auto e : ordrepr)
+    {
+        path.push_back(order.at(e));
+        order.erase(order.begin() + e);
+    }
+    return path;
+}
+
 /**
      * metoda licząca długość trasy odwiedzającej wszystkie miasta.
      * To też jest nasza minimalizowana funkcja celu!!!
@@ -46,9 +67,11 @@ void Solution::set_problem(std::shared_ptr<Problem> p)
 double Solution::distance() const
 {
     double sum = 0.0;
+
+    vector<int> path = to_path(*this);
     for (unsigned i = 0; i < size(); i++)
     {
-        sum += problem->at(at(i)).dist(problem->at(at((i + 1) % size())));
+        sum += problem->at(path.at(i)).dist(problem->at(path.at((i + 1) % size())));
     }
     return sum;
 }
@@ -60,10 +83,22 @@ double Solution::distance() const
      * */
 Solution Solution::generate_next(std::function<void(void)> on_end) const
 {
-    Solution s = *this;
-    if (!std::next_permutation(s.begin(), s.end()))
-        on_end();
-    return s;
+    Solution ret = *this;
+    int i = 0;
+    while (true)
+    {
+        ret.at(i) += 1;
+        if (ret.at(i) < (ret.size() - i))
+            break;
+        ret.at(i) = 0;
+        i++;
+        if (i >= ret.size())
+        {
+            on_end();
+            break;
+        }
+    }
+    return ret;
 }
 /**
      * Generuje nam losowego sąsiada.
@@ -93,33 +128,16 @@ void Solution::randomize(std::mt19937 &mt)
 Solution Solution::inc_axis(int ax) const
 {
     Solution nsol = *this;
-    int prevCityIdx = nsol.at(ax);
-    nsol[ax] = (nsol[ax] + 1) % size();
-    for (int i = 0; i < size(); i++)
-    {
-        if ((nsol[i] == nsol[ax]) && (i != ax))
-        {
-            nsol[i] = prevCityIdx;
-            return nsol;
-        }
-    }
+    if (ax >= (nsol.size()-1)) return nsol;
+    nsol.at(ax) = (nsol.at(ax) + 1) % (nsol.size() - ax); 
     return nsol;
 }
 // odejmuje 1 na zadanej wspolrzednej
 Solution Solution::dec_axis(int ax) const
 {
     Solution nsol = *this;
-    int prevCityIdx = nsol[ax];
-    nsol[ax] = (nsol[ax] + nsol.size() - 1) % size();
-    for (int i = size() - 1; i >= 0; i--)
-    {
-        // zmiana
-        if ((nsol[i] == nsol[ax]) && (i != ax))
-        {
-            nsol[i] = prevCityIdx;
-            return nsol;
-        }
-    }
+    if (ax >= (nsol.size()-1)) return nsol;
+    nsol.at(ax) = (nsol.at(ax) + nsol.size() - 1) % (nsol.size() - ax); 
     return nsol;
 }
 
@@ -145,8 +163,9 @@ std::istream &operator>>(std::istream &is, Problem &p)
  * */
 std::ostream &operator<<(std::ostream &o, Solution &s)
 {
+
     o << "[" << s.distance() << "] ";
-    for (int i : s)
+    for (int i : to_path(s))
     {
         auto c = s.problem->at(i);
         o << c.name << "(" << c.x[0] << "," << c.x[1] << ") ";
