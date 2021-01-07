@@ -16,19 +16,20 @@ random_device rd;
 mt19937 randgen(rd());
 
 /**
- * program ewolucyjny
+ * program ewolucyjny / uogólniony algorytm genetyczny
  * */
 auto ep = [](
 			  auto population,
-			  int iterations,
+			  auto term_condition, // int iterations,
 			  selection_f_t select,
 			  crossover_f_t crossover,
 			  mutation_f_t mutation,
 			  double p_crossover,
 			  double p_mutation) {
-	for (int iteration = 0; iteration < iterations; iteration++)
+	for (int iteration = 0; term_condition(population, iteration); iteration++)
 	{
-		vector<chromosome_t> new_pop;
+		vector<chromosome_t> new_pop(population.size());
+		#pragma omp parallel for
 		for (int c = 0; c < population.size() / 2; c++)
 		{
 			chromosome_t parent1 = select(population);
@@ -36,8 +37,8 @@ auto ep = [](
 			auto [child1, child2] = crossover(parent1, parent2, p_crossover);
 			child1 = mutation(child1, p_mutation);
 			child2 = mutation(child2, p_mutation);
-			new_pop.push_back(child1);
-			new_pop.push_back(child2);
+			new_pop[c*2  ] = child1;
+			new_pop[c*2+1] = child2;
 		}
 		population = new_pop;
 	}
@@ -109,6 +110,7 @@ int main()
 		}
 		return l;
 	};
+
 	/// funkcja fitness - przeksztalcona funkcja celu
 	auto fitness = [=](chromosome_t c) {
 		auto l = goal(c);
@@ -191,7 +193,47 @@ int main()
 	/// uruchomienie programu ewolucyjnego
 	auto initial_population = init_pop(cities_coordinates.size() * cities_coordinates.size(), cities_coordinates.size());
 	print_stats("initial", initial_population, false);
-	auto result_population = ep(initial_population, 100, select, corssover_ox, mutation_swap, 0.8, 0.1);
+
+	int last_improvement = 0;
+	auto best_so_far = *std::max_element(initial_population.begin(), initial_population.end(), [&](auto &a, auto &b) {
+		return fitness(a) < fitness(b);
+	});
+	auto term_no_improvement = [&last_improvement, &best_so_far, &fitness](std::vector<chromosome_t> pop, int iteration) {
+		auto current_best = *std::max_element(pop.begin(), pop.end(), [&](auto &a, auto &b) {
+			return fitness(a) < fitness(b);
+		});
+		//cout << "# " << iteration << " " << fitness(best_so_far) << " < " << fitness(current_best) << " " << iteration << "-" << last_improvement << endl;
+		if (fitness(best_so_far) < fitness(current_best))
+		{
+			last_improvement = iteration;
+			best_so_far = current_best;
+		}
+		if ((iteration - last_improvement) < 100)
+		{
+			return true;
+		}
+		else
+		{
+			cout << "#finish at " << iteration << endl;
+			return false;
+		}
+	};
+
+	auto term_stddev = [&fitness](std::vector<chromosome_t> pop, int iteration) {
+		// todo: fix
+		double stddev = 0;
+		double avg = accumulate(pop.begin(), pop.end(), (double)0.0,
+								[&](double a, chromosome_t b) { return a + fitness(b); }) /
+					 (double)pop.size();
+		double sum = accumulate(pop.begin(), pop.end(), (double)0.0,
+								[&](double a, chromosome_t b) { return a + pow((fitness(b) - avg), 2); });
+		stddev = sqrt(sum / (double)pop.size());
+		cout << iteration << " " << avg << " " << sum << " " << stddev << endl;
+		return iteration < 1000;
+	};
+
+	auto result_population = ep(
+		initial_population, [](auto pop, int i) { return i < 1000; }, select, corssover_ox, mutation_swap, 0.8, 0.1);
 	print_stats("result", result_population, false);
 	/// ile powinno wyjsc - okolo, poniewaz miasta nie pokrywaja wszystkich punktow kola, wiec wynik faktyczny powinien byc troche mniejszy
 	std::cout
