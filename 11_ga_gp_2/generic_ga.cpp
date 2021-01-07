@@ -78,6 +78,7 @@ int main()
 		{2.7090578830786907, -9.626058663135666},
 		{-6.636338842129676, -7.480575296890004}};
 
+	// s - liczba osobnikow, n - dlugosc chromosomu
 	auto init_pop = [](int s, int n) -> vector<chromosome_t> {
 		vector<chromosome_t> ret;
 		chromosome_t numbers;
@@ -188,9 +189,9 @@ int main()
 	};
 
 	/// uruchomienie programu ewolucyjnego
-	auto initial_population = init_pop(cities_coordinates.size() * 2, cities_coordinates.size());
+	auto initial_population = init_pop(cities_coordinates.size() * cities_coordinates.size(), cities_coordinates.size());
 	print_stats("initial", initial_population, false);
-	auto result_population = ep(initial_population, 1000, select, corssover_ox, mutation_swap, 0.8, 0.1);
+	auto result_population = ep(initial_population, 100, select, corssover_ox, mutation_swap, 0.8, 0.1);
 	print_stats("result", result_population, false);
 	/// ile powinno wyjsc - okolo, poniewaz miasta nie pokrywaja wszystkich punktow kola, wiec wynik faktyczny powinien byc troche mniejszy
 	std::cout
