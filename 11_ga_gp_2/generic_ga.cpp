@@ -191,7 +191,8 @@ int main()
 	};
 
 	/// uruchomienie programu ewolucyjnego
-	auto initial_population = init_pop(cities_coordinates.size() * cities_coordinates.size(), cities_coordinates.size());
+	//auto initial_population = init_pop(cities_coordinates.size() * cities_coordinates.size(), cities_coordinates.size());
+	auto initial_population = init_pop(50, cities_coordinates.size());
 	print_stats("initial", initial_population, false);
 
 	int last_improvement = 0;
@@ -220,7 +221,6 @@ int main()
 	};
 
 	auto term_stddev = [&fitness](std::vector<chromosome_t> pop, int iteration) {
-		// todo: fix
 		double stddev = 0;
 		double avg = accumulate(pop.begin(), pop.end(), (double)0.0,
 								[&](double a, chromosome_t b) { return a + fitness(b); }) /
@@ -228,12 +228,17 @@ int main()
 		double sum = accumulate(pop.begin(), pop.end(), (double)0.0,
 								[&](double a, chromosome_t b) { return a + pow((fitness(b) - avg), 2); });
 		stddev = sqrt(sum / (double)pop.size());
-		cout << iteration << " " << avg << " " << sum << " " << stddev << endl;
-		return iteration < 1000;
+		cout << iteration << " " << avg << " " << sum << " " << stddev;
+		//cout << " #";
+		//for (int i = 0; i < pop.size(); i++) cout << " " << fitness(pop[i]);
+		cout << endl;
+		return stddev > 0.0000001; //iteration < 1000;
 	};
 
+	auto term_iterations = [](auto pop, int i) { return i < 1000; };
+
 	auto result_population = ep(
-		initial_population, [](auto pop, int i) { return i < 1000; }, select, corssover_ox, mutation_swap, 0.8, 0.1);
+		initial_population, term_stddev, select, corssover_ox, mutation_swap, 0.8, 0.1);
 	print_stats("result", result_population, false);
 	/// ile powinno wyjsc - okolo, poniewaz miasta nie pokrywaja wszystkich punktow kola, wiec wynik faktyczny powinien byc troche mniejszy
 	std::cout
