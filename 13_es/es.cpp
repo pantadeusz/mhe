@@ -57,13 +57,13 @@ specimen_t operator+(const specimen_t& x, const specimen_t& y)
 using population_t = std::vector<specimen_t>;
 std::ostream& operator<<(std::ostream& o, const specimen_t& s)
 {
-    o << "( ";
+//    o << "( ";
     for (auto v : s.y)
         o << v << " ";
-    o << ", ";
+//    o << ", ";
     for (auto s_ : s.s)
         o << s_ << " ";
-    o << ", " << s.f(s) << " )";
+    o << " " << s.f(s);
     return o;
 }
 /**
@@ -105,6 +105,7 @@ specimen_t evolution_strategy(int lambda, population_t init_pop, int iterations 
         for (int i = 0; i < lambda; i += 2) {
             auto X_1 = P_g.at(uni_dist(0, P_g.size() - 1));
             auto X_2 = P_g.at(uni_dist(0, P_g.size() - 1));
+
             double a = uni_double_dist();
 
             auto X_1_p = X_1 * a + X_2 * (1.0 - a);
@@ -126,7 +127,7 @@ specimen_t evolution_strategy(int lambda, population_t init_pop, int iterations 
         sort(OP.begin(), OP.end());
 
         P.push_back(population_t(OP.begin() + (OP.size() - mu), OP.end()));
-        cout << "F: " << P.back().back().f(P.back().back()) << " " << P.back().back() << " " <<  P.back().size() << endl;
+        cout << g << " " << P.back().back() << " " << P.back().size() << endl;
 
         g++;
     } while (g < iterations);
@@ -134,43 +135,30 @@ specimen_t evolution_strategy(int lambda, population_t init_pop, int iterations 
     return P.back().at(0);
 }
 
+auto sphere_f = [](auto v) -> double {
+    double sum = 0;
+    for (auto e : v.y) {
+        sum += e * e;
+    }
+    return 1 / (1.0 + sum);
+};
+
+auto ackley = [](auto pp) {
+    auto d = pp.y;
+    double x = d.at(0);
+    double y = d.at(1);
+    return 100 - (-20 * exp(-0.2 * sqrt(0.5 * (x * x + y * y))) - exp(0.5 * cos(2 * M_PI * x) + cos(2 * M_PI * y)) + M_E + 20);
+};
+
+auto himmelblau = [](auto pp) {
+    auto d = pp.y;
+    double x = d.at(0);
+    double y = d.at(1);
+    return 1000 - (pow(x * x + y - 11, 2.0) + pow(x + y * y - 7, 2));
+};
+
 int main(int argc, char** argv)
 {
-    auto fun_to_opt = [](auto v) -> double {
-        auto x = v.y.at(0);
-        auto y = v.y.at(1);
-        if (std::abs(x) > 10.0)
-            return 0.0;
-        if (std::abs(y) > 10.0)
-            return 0.0;
-        auto ret = 1000000.0 / (1.0 + (0.26 * (x * x + y * y) - 0.48 * x * y));
-        if (ret < 0.0)
-            ret = 0;
-        return ret;
-    };
-
-    auto sphere_f = [](auto v) -> double {
-        double sum = 0;
-        for (auto e : v.y) {
-            sum += e * e;
-        }
-        return 1 / (1.0 + sum);
-    };
-
-    auto ackley = [](auto pp) {
-        auto d = pp.y;
-        double x = d.at(0);
-        double y = d.at(1);
-        return 100 - (-20 * exp(-0.2 * sqrt(0.5 * (x * x + y * y))) - exp(0.5 * cos(2 * M_PI * x) + cos(2 * M_PI * y)) + M_E + 20);
-    };
-
-    auto himmelblau = [](auto pp) {
-        auto d = pp.y;
-        double x = d.at(0);
-        double y = d.at(1);
-        return 1000 - (pow(x * x + y - 11, 2.0) + pow(x + y * y - 7, 2));
-    };
-
     population_t initial_population;
     for (int i = 0; i < 20; i++) {
         initial_population.push_back(specimen_of(2, ackley));
@@ -182,6 +170,6 @@ int main(int argc, char** argv)
             s = std::abs(norm_dist() * 1.0);
     }
     auto result = evolution_strategy(20, initial_population, 100);
-    std::cout << result << std::endl;
+    std::cout << "# " << result << std::endl;
     return 0;
 }
