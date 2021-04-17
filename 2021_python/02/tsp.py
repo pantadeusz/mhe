@@ -72,6 +72,43 @@ def hillClimbingRandomized(goal, gensol, genNeighbour, iterations,onIteration):
         onIteration(i, currentBest, goal)
     return currentBest
 
+def hillClimbingDeterministic(goal, gensol, genBestNeighbour, iterations,onIteration):
+    '''goal - funkcja celu (to optymalizujemy),
+    gensol - generowanie losowego rozwiazania,
+    genNeighbour - generowanie losowego punktu z otoczenia rozwiazania,
+    iterations - liczba iteracji alg.'''
+    currentBest = gensol()
+    for i in range(0, iterations):
+        newSol = genBestNeighbour(currentBest, goal)
+        if (newSol == currentBest):
+            return currentBest
+        currentBest = newSol
+        onIteration(i, currentBest, goal)
+    return currentBest
+
+
+def simAnnealing(goal, gensol, genNeighbour, T, iterations, onIteration):
+    '''goal - funkcja celu (to optymalizujemy),
+    gensol - generowanie losowego rozwiazania,
+    genNeighbour - generowanie losowego punktu z otoczenia rozwiazania,
+    iterations - liczba iteracji alg.'''
+    currentBest = gensol()
+    V = [currentBest]
+    for i in range(1, iterations+1):
+        newSol = genNeighbour(currentBest)
+        if (goal(newSol) <= goal(currentBest)):
+            currentBest = newSol
+            V.append(currentBest)
+        else:
+            e = math.exp(- abs(goal(newSol) - goal(currentBest))/T(i))
+            u = random.uniform(0.0,1.0)
+            if (u < e):
+                currentBest = newSol
+                V.append(currentBest)
+        onIteration(i-1, currentBest, goal)
+    
+    return min(V, key=goal)
+
 
 def generateProblem(n):
     '''tworzy przykladowe zadanie dla n miast '''
@@ -88,6 +125,27 @@ def getRandomNeighbour(currPoint):
     newPoint[swapPoint] = currPoint[(swapPoint+1) % len(currPoint)]
     return newPoint
 
+def getRandomNeighbour2(currPoint):
+    for i in range(0, int(min(abs( random.normalvariate(0.0,2.0)) + 1,500)) ):
+        swapPoint = int(random.uniform(0, len(currPoint)-1))
+        newPoint = copy.deepcopy(currPoint)
+        newPoint[(swapPoint+1) % len(currPoint)] = currPoint[swapPoint]
+        newPoint[swapPoint] = currPoint[(swapPoint+1) % len(currPoint)]
+        currPoint = newPoint
+    return currPoint
+
+def getBestNeighbour(currPoint, goal):
+    best = currPoint
+    for swapPoint in range(0,len(currPoint)-1):
+        newPoint = copy.deepcopy(currPoint)
+        newPoint[(swapPoint+1) % len(currPoint)] = currPoint[swapPoint]
+        newPoint[swapPoint] = currPoint[(swapPoint+1) % len(currPoint)]
+        if (goal(newPoint) <= goal(best)):
+            best = newPoint
+    return best
+
+
+
 ########################################3###############################
 # problem = [[0,0],[1,0],[0.5,1.1],[1,1],[0,1]]
 problem = generateProblem(5)
@@ -96,8 +154,10 @@ problem = generateProblem(5)
 
 iterations = 500
 for arg in sys.argv:
-    if re.search("[0-9][0-9]*", arg) != None:
-        problem = generateProblem(int(arg))
+    if re.search("p[0-9][0-9]*", arg) != None:
+        problem = generateProblem(int(arg[1:]))
+    if re.search("i[0-9][0-9]*", arg) != None:
+        iterations = int(arg[1:])
     if arg == '-problem':
         print(problem)
     if arg == 'randomProbe':
@@ -109,6 +169,19 @@ for arg in sys.argv:
         sol = hillClimbingRandomized(lambda s: goalFunction(s, problem),
                                      lambda: generateRandomVisitOrder(len(problem)),
                                      getRandomNeighbour, iterations, printSolution)
+    
+    if arg == 'hillClimbingDeterministic':
+        # wspinaczka
+        sol = hillClimbingDeterministic(lambda s: goalFunction(s, problem),
+                                     lambda: generateRandomVisitOrder(len(problem)),
+                                     getBestNeighbour, iterations, printSolution)
+    if arg == 'simAnnealing':
+        # wspinaczka
+        sol = simAnnealing(lambda s: goalFunction(s, problem),
+                                     lambda: generateRandomVisitOrder(len(problem)),
+                                     getRandomNeighbour2, 
+                                     lambda k : 1000.0/k,
+                                     iterations, printSolution)
     if arg == 'fullSearch':
         sol = fullSearch(lambda s: goalFunction(s, problem), problem, printSolution)
     if arg == '-printSol':
