@@ -23,7 +23,7 @@ def printSolution(i, currentBest, goal):
 
 def doNotPrintSolution(i, currentBest, goal):
     return 0
-    
+
 def generateRandomVisitOrder(n):
     r = []
     f = list(range(0, n))
@@ -153,6 +153,7 @@ problem = generateProblem(5)
 #print (goalFunction([0,2,1,3],problem))
 
 iterations = 500
+printer = printSolution
 for arg in sys.argv:
     if re.search("p[0-9][0-9]*", arg) != None:
         problem = generateProblem(int(arg[1:]))
@@ -160,30 +161,34 @@ for arg in sys.argv:
         iterations = int(arg[1:])
     if arg == '-problem':
         print(problem)
+    if arg == '-print':
+        printer=printSolution
+    if arg == '-noprint':
+        printer=doNotPrintSolution
     if arg == 'randomProbe':
         # Random probe
         sol = randomProbe(lambda s: goalFunction(s, problem),
-                        lambda: generateRandomVisitOrder(len(problem)), iterations, printSolution)
+                        lambda: generateRandomVisitOrder(len(problem)), iterations, printer)
     if arg == 'hillClimbingRandomized':
         # wspinaczka
         sol = hillClimbingRandomized(lambda s: goalFunction(s, problem),
                                      lambda: generateRandomVisitOrder(len(problem)),
-                                     getRandomNeighbour, iterations, printSolution)
+                                     getRandomNeighbour, iterations, printer)
     
     if arg == 'hillClimbingDeterministic':
         # wspinaczka
         sol = hillClimbingDeterministic(lambda s: goalFunction(s, problem),
                                      lambda: generateRandomVisitOrder(len(problem)),
-                                     getBestNeighbour, iterations, printSolution)
+                                     getBestNeighbour, iterations, printer)
     if arg == 'simAnnealing':
         # wspinaczka
         sol = simAnnealing(lambda s: goalFunction(s, problem),
                                      lambda: generateRandomVisitOrder(len(problem)),
                                      getRandomNeighbour2, 
                                      lambda k : 1000.0/k,
-                                     iterations, printSolution)
+                                     iterations, printer)
     if arg == 'fullSearch':
-        sol = fullSearch(lambda s: goalFunction(s, problem), problem, printSolution)
+        sol = fullSearch(lambda s: goalFunction(s, problem), problem, printer)
     if arg == '-printSol':
         print(sol)
         print(goalFunction(sol, problem))
