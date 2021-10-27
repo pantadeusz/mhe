@@ -47,6 +47,9 @@ work_point_t generate_random_tsp_point(my_graph_t problem);
  * */ 
 work_point_t generate_first_tsp_point(my_graph_t problem);
 
+work_point_t generate_random_tsp_neighbour(work_point_t p);
+
+
 /**
  * this function will give the next point for TSP
  * */

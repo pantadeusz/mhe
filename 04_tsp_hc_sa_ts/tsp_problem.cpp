@@ -109,6 +109,14 @@ work_point_t generate_random_tsp_point(my_graph_t problem)
     return result;
 }
 
+work_point_t generate_random_tsp_neighbour(work_point_t p) {
+        uniform_int_distribution<int> distr(0, p.size() - 2);
+        int i = distr(rand_gen);
+        std::swap(p[i],p[i+1]);
+        return p;
+}
+
+
 work_point_t generate_first_tsp_point(my_graph_t problem)
 {
     work_point_t f;
@@ -157,10 +165,10 @@ graph G {
 }
     */
 
-    for (auto e : graph_w_solution.second) {
-        cerr << e << " ";
-    }
-    cerr << endl;
+//    for (auto e : graph_w_solution.second) {
+//        cerr << e << " ";
+//    }
+//    cerr << endl;
     o << "graph G {" << endl;
     // not directed!!
     for (int row = 0; row < graph_w_solution.first.size(); row++) {
