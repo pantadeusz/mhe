@@ -10,6 +10,12 @@
 
 using namespace std;
 
+random_device dandom_dev;
+mt19937 rand_gen(dandom_dev());
+
+
+
+
 function<double(work_point_t)> cost_function_factory(my_graph_t tsp_problem)
 {
     return [=](work_point_t list_of_cities) -> double {
@@ -22,27 +28,6 @@ function<double(work_point_t)> cost_function_factory(my_graph_t tsp_problem)
         }
         return sum;
     };
-}
-
-
-void test_if_it_works()
-{
-    my_graph_t cities = {
-        // 0    1    2    3    4
-        {0.0, 1.0, 2.0, 5.0, 8.0}, // 0
-        {1.0, 0.0, 4.0, 3.0, 9.0}, // 1
-        {2.0, 4.0, 0.0, 2.0, 6.0}, // 2
-        {5.0, 3.0, 2.0, 0.0, 3.0}, // 3
-        {8.0, 9.0, 6.0, 3.0, 0.0}  // 4
-    };
-    // 1 + 4 + 2 + 3 + 8 =  20
-
-    auto cost_func = cost_function_factory(cities);
-    work_point_t sol_candidate = {0, 2, 1, 3, 4};
-    cout << "cost for: ";
-    for (auto c : sol_candidate)
-        cout << c << " ";
-    cout << "is " << cost_func(sol_candidate) << endl;
 }
 
 my_graph_t load_problem(string fname)
@@ -79,9 +64,6 @@ my_graph_t load_problem_from_coordinates(vector<pair<double, double>> cities_lis
     }
     return ret;
 }
-
-random_device dandom_dev;
-mt19937 rand_gen(dandom_dev());
 
 my_graph_t generate_random_problem(int n, function<void(vector<pair<double, double>>)> on_cities)
 {
@@ -158,7 +140,7 @@ bool operator==(work_point_t a, work_point_t b)
 ostream& operator<<(ostream& o, const my_graph_t graph)
 {
     for (auto row : graph) {
-        o << "[ ";
+        o << "# PROBLEM # [ ";
         for (auto v : row) {
             o << v << " ";
         }
