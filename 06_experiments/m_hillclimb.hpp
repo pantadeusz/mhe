@@ -22,13 +22,13 @@ auto hill_climb_rnd = [](
     auto p = best_p; // current work point
     const auto p0 = p;
     for (int i = 0; i < N; i++) {
-        on_iteration(i, cost(p), cost(best_p));
         p = next_point(best_p);
         const double cost_value = cost(p);
         if (cost_value < best_goal_val) {
             best_goal_val = cost_value;
             best_p = p;
         }
+        on_iteration(i, cost(p), cost(best_p));
     }
     auto finish = chrono::steady_clock::now();
     chrono::duration<double> duration = finish - start;

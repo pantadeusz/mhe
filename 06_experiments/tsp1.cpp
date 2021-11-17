@@ -46,7 +46,8 @@ int main(int argc, char** argv)
         {"size", "10"},
         {"iterations","1000"},
         {"method", "brute_force"},
-        {"print_result","false"}};
+        {"print_result","false"},
+        {"tabu_size","100"}};
     for (auto [k, v] : args_to_map(vector<string>(argv, argv + argc))) {
         parameters[k] = v; // overwrite default parameters with the ones from CLI
     }
@@ -84,7 +85,7 @@ int main(int argc, char** argv)
             [&]() { return start_point; },
             generate_tsp_point_neighbours,
             iterations,
-            100, on_finish, on_step);
+            stoi(parameters["tabu_size"]), on_finish, on_step);
     }
 
     if (parameters["print_result"] == "true") {
