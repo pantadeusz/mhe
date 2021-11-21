@@ -21,9 +21,9 @@ function<double(work_point_t)> cost_function_factory(my_graph_t tsp_problem)
     return [=](work_point_t list_of_cities) -> double {
         double sum = 0;
         for (int i = 0; i < list_of_cities.size(); i++) {
-            int city1 = list_of_cities[i], city2 = list_of_cities[(i + 1) % list_of_cities.size()];
+            int city1 = list_of_cities.at(i), city2 = list_of_cities.at((i + 1) % list_of_cities.size());
             double cost = tsp_problem.at(city1).at(city2);
-            if (cost == 0.0) throw string("no connection between cities");
+            if (cost == 0.0) throw std::invalid_argument("no connection between cities: " + std::to_string(city1) + " - " + std::to_string(city2));
             sum = sum + cost;
         }
         return sum;
@@ -67,10 +67,10 @@ my_graph_t load_problem_from_coordinates(vector<pair<double, double>> cities_lis
 
 my_graph_t generate_random_problem(int n, function<void(vector<pair<double, double>>)> on_cities)
 {
-    uniform_int_distribution<int> distr(0, n * 2);
+    uniform_real_distribution<double> distr(-n, n);
     vector<pair<double, double>> cities_list;
     for (int i = 0; i < n; i++) {
-        cities_list.push_back({(double)distr(rand_gen), (double)distr(rand_gen)});
+        cities_list.push_back({distr(rand_gen), distr(rand_gen)});
     }
     on_cities(cities_list);
     return load_problem_from_coordinates(cities_list);

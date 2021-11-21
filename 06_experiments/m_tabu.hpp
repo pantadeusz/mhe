@@ -21,7 +21,7 @@ auto tabu_search = [](
     using namespace std;
     auto start = chrono::steady_clock::now();
 
-    auto best_p = generate_first_point();
+    auto best_p = generate_first_point(); // absolutely best point seen any time
 
     set<decltype(best_p)> taboo_set;
     list<decltype(best_p)> taboo_list;
@@ -30,8 +30,10 @@ auto tabu_search = [](
         //if (taboo_set.count(e)) cerr << "tabu hit" << endl;
         return taboo_set.count(e); };
     auto add_to_taboo = [&](auto e) {
-        taboo_set.insert(e);
-        taboo_list.push_back(e);
+        if (taboo_set.count(e) == 0) {
+            taboo_set.insert(e);
+            taboo_list.push_back(e);
+        }
     };
     auto shrink_taboo = [&]() {
         if (taboo_set.size() > tabu_size) {
@@ -41,15 +43,23 @@ auto tabu_search = [](
         }
     };
 
-    auto p = best_p; // current work point
+    add_to_taboo(best_p); // last point to taboo
     for (int i = 0; i < N; i++) {
-        auto neighbours = neighbours_f(best_p);
-        neighbours.erase(std::remove_if(neighbours.begin(),
-                             neighbours.end(),
-                             [&](auto e) { return is_in_taboo(e); }),
-            neighbours.end());
-        if (neighbours.size() == 0) break;
-        p = *max_element(neighbours.begin(), neighbours.end(), [&](auto a, auto b) {
+        decltype(neighbours_f(best_p)) neighbours;
+        auto current_point = taboo_list.end();
+        do {
+            current_point--;
+            neighbours = neighbours_f(*current_point);
+            neighbours.erase(std::remove_if(neighbours.begin(),
+                                 neighbours.end(),
+                                 [&](auto e) { return is_in_taboo(e); }),
+                neighbours.end());
+        } while ((neighbours.size() == 0) && (taboo_list.begin() != current_point));
+        if (neighbours.size() == 0) {
+            std::cerr << "visited every domain point. Terminating" << std::endl;
+            break;
+        }
+        auto p = *max_element(neighbours.begin(), neighbours.end(), [&](auto a, auto b) {
             return cost(a) > cost(b);
         });
         add_to_taboo(p);
