@@ -168,11 +168,11 @@ graph G {
     //    cerr << endl;
     o << "graph G {" << endl;
     // not directed!!
-    for (int row = 0; row < graph_w_solution.first.size(); row++) {
+    for (unsigned row = 0; row < graph_w_solution.first.size(); row++) {
         for (int col = 0; col < row; col++) { // graph_w_solution.first.at(row).size(); col++) {
             if (graph_w_solution.first.at(row).at(col) > 0) {
                 bool style = false;
-                for (int i = 0; i < graph_w_solution.second.size(); i++) {
+                for (unsigned i = 0; i < graph_w_solution.second.size(); i++) {
                     if (((graph_w_solution.second.at(i) == row) && (graph_w_solution.second.at((i + 1) % graph_w_solution.second.size()) == col)) || ((graph_w_solution.second.at(i) == col) && (graph_w_solution.second.at((i + 1) % graph_w_solution.second.size()) == row))) {
                         style = true;
                         break;

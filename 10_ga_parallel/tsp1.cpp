@@ -64,7 +64,7 @@ int main(int argc, char** argv)
             cout << "# count: " << c << "; dt:  " << dt << endl;
         };
     auto on_step = [&](int i, double current_goal_val, double goal_v) {
-        cout << i << " " << current_goal_val << " " << goal_v << endl;
+       // cout << i << " " << current_goal_val << " " << goal_v << endl;
     };
     if (parameters["method"] == "brute_force") {
         best_solution = brute_force_tsp(

@@ -36,7 +36,7 @@ auto tabu_search = [](
         }
     };
     auto shrink_taboo = [&]() {
-        if (taboo_set.size() > tabu_size) {
+        if ((int)taboo_set.size() > tabu_size) {
             taboo_set.erase(taboo_list.front());
             taboo_list.pop_front();
             // cerr << "shrink list" << endl;
@@ -63,7 +63,6 @@ auto tabu_search = [](
             return cost(a) > cost(b);
         });
         add_to_taboo(p);
-        const double cost_value = cost(p);
         if (cost(p) < cost(best_p)) {
             best_p = p;
         }

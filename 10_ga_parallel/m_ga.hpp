@@ -10,6 +10,8 @@
 #include <numeric>
 #include <random>
 #include <set>
+#include <future>
+//#include <openmp>
 
 
 std::random_device rd;
@@ -33,9 +35,13 @@ auto genetic_algorithm = [](
 
     vector<double> population_fit(population.size());
     std::transform(population.begin(), population.end(), population_fit.begin(), fitness);
+    std::cout << "GA!!\n"
+              << std::endl;
     while (term_condition(population, population_fit, iteration++)) {
         decltype(population) new_pop(population.size());
-        for (int c = 0; c < population.size(); c += 2) {
+        auto iterations_ = population.size();
+        #pragma omp parallel for
+        for (int c = 0; c < iterations_; c += 2) {
             uniform_real_distribution<double> should_mutate;
             uniform_real_distribution<double> should_crossover;
             auto parent1 = population.at(select(population_fit));
@@ -51,6 +57,22 @@ auto genetic_algorithm = [](
             new_pop[c + 1] = child2;
         }
         population = new_pop;
+
+        auto task1f = [&,iterations_]() {
+            for (int i = 0; i < iterations_ / 2; i++)
+                population_fit[i] = fitness(population[i]);
+            return 0;
+        };
+
+        auto task2f = [&,iterations_]() {
+            for (int i = iterations_ / 2; i < iterations_; i++)
+                population_fit[i] = fitness(population[i]);
+            return 0;
+        };
+        //auto task1 = std::async(std::launch::async, task1f);
+        //auto task2 = std::async(std::launch::async, task2f);
+        //task1.get();
+        //task2.get();
         std::transform(population.begin(), population.end(), population_fit.begin(), fitness);
 
         auto best_specimen_it = max_element(population_fit.begin(), population_fit.end(), [&](auto a, auto b) {
