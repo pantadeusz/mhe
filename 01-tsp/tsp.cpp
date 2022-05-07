@@ -258,7 +258,7 @@ std::pair<solution_t,std::chrono::duration<double>> experiment_genetic_algorithm
         int iterations,
         int population_size,
         double crossover_probability,
-        double mutation_probability,        
+        double mutation_probability,
 bool show_progress) {
     using namespace std;
 /// generate initial solution
@@ -269,7 +269,16 @@ bool show_progress) {
 /// prepare important functions:
 /// goal function for solution - how good or bad it is. We minimize this function
     function<double(solution_t)> fitness_function = [problem](auto s) {
-        return 1.0/(1+tsp_problem_cost_function(problem, s));
+        map<int,int> stats;
+        double error = 0;
+        for (auto i : s) {
+            stats[i] = stats[i] + 1;
+        }
+        for (auto [k,v] : stats) {
+            if (v > 1) error += v;
+        }
+        double fit = 10000.0 + 1000.0/(1+tsp_problem_cost_function(problem, s)) - error*100;
+        return (fit>0)?fit:0.0;
     };
 /// mutation method
     function<solution_t(solution_t)> mutation = [=](auto s) {
@@ -282,13 +291,19 @@ bool show_progress) {
         }
         return s;
     };
-    auto crossover = [problem](solution_t a, solution_t b) -> pair<solution_t,solution_t> {
+    auto crossover = [=](solution_t a, solution_t b) -> pair<solution_t,solution_t> {
+        uniform_real_distribution<double> u(0.0,1.0);
+        if (u(random_generator) < crossover_probability) {
+            uniform_int_distribution<int> cross_distr(0,a.size()-1);
+            int crossover_pt = cross_distr(random_generator);
+            for (int i = crossover_pt; i < a.size(); i++) swap(a[i], b[i]);
+        }
         return {a,b};
     };
 /// what is the termination condition
     int i = 0;
-    std::function<bool(std::vector<double>, std::vector<solution_t>)> 
-      term_condition = [&](auto pop_fit,auto pop) {
+    std::function<bool(std::vector<double>, std::vector<solution_t>)>
+    term_condition = [&](auto pop_fit,auto pop) {
         i++;
         return i < iterations;
     };
@@ -322,7 +337,7 @@ int main(int argc, char** argv)
     auto method = arg(argc, argv, "method", std::string("tabu"));
     auto tabu_size = arg(argc, argv, "tabu_size", 100);
     auto dot =  arg(argc, argv, "dot", false);
-    
+
     auto pop_size = arg(argc, argv, "pop_size", 50);
     auto crossover_p = arg(argc, argv, "crossover_p", 0.9);
     auto mutation_p = arg(argc, argv, "mutation_p", 0.1);
@@ -364,10 +379,10 @@ int main(int argc, char** argv)
 
     } else if (method == "genetic_algorithm") {
         auto [a, b] = experiment_genetic_algorithm(problem, iterations,
-        pop_size,
-        crossover_p,
-        mutation_p,
-        show_progress);
+                      pop_size,
+                      crossover_p,
+                      mutation_p,
+                      show_progress);
         best_solution = a;
         calculation_duration = b;
     } else {
