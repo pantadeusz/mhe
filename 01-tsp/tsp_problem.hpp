@@ -92,7 +92,7 @@ inline problem_t load_problem(std::string fname)
     return problem;
 }
 
-std::string vis(solution_t sol, problem_t problem) {
+inline std::string vis(solution_t sol, problem_t problem) {
     using namespace std;
     /*
     graph G {

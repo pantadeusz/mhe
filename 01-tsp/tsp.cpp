@@ -18,6 +18,8 @@
 #include "simulated_annealing.hpp"
 #include "full_revision.hpp"
 #include "tabu.hpp"
+#include "genetic_algorithm.hpp"
+
 
 #include "tsp_problem.hpp"
 #include "global_random.hpp"
@@ -209,7 +211,7 @@ int iterations, int max_tabu_size, bool show_progress) {
 
 
 std::pair<solution_t,std::chrono::duration<double>> experiment_simulated_annealing(problem_t problem,
-int iterations,
+        int iterations,
 bool show_progress) {
     using namespace std;
 /// generate initial solution
@@ -235,7 +237,7 @@ bool show_progress) {
         return i < iterations;
     };
 
-    function<double(int)> temperature = [](int t){
+    function<double(int)> temperature = [](int t) {
         return 1000/t;
     };
 /// run the full review method
@@ -244,12 +246,68 @@ bool show_progress) {
                                goal,next_solution,
                                temperature,
                                term_condition,
-                                show_progress);
+                               show_progress);
     auto calculation_end = chrono::steady_clock::now();
 /// show the result
     chrono::duration<double> calculation_duration = calculation_end-calculation_start;
     return {best_solution, calculation_duration};
 }
+
+
+std::pair<solution_t,std::chrono::duration<double>> experiment_genetic_algorithm(problem_t problem,
+        int iterations,
+        int population_size,
+        double crossover_probability,
+        double mutation_probability,        
+bool show_progress) {
+    using namespace std;
+/// generate initial solution
+    vector<solution_t> init_population;
+    for (int i = 0; i < population_size; i++)
+        init_population.push_back( generate_random_solution(problem));
+
+/// prepare important functions:
+/// goal function for solution - how good or bad it is. We minimize this function
+    function<double(solution_t)> fitness_function = [problem](auto s) {
+        return 1.0/(1+tsp_problem_cost_function(problem, s));
+    };
+/// mutation method
+    function<solution_t(solution_t)> mutation = [=](auto s) {
+        uniform_real_distribution<double> u(0.0,1.0);
+        if (u(random_generator) < mutation_probability) {
+            uniform_int_distribution<int> distr(0,problem.size()-1);
+            int a = distr(random_generator);
+            int b = distr(random_generator);
+            swap(s[a], s[b]);
+        }
+        return s;
+    };
+    auto crossover = [problem](solution_t a, solution_t b) -> pair<solution_t,solution_t> {
+        return {a,b};
+    };
+/// what is the termination condition
+    int i = 0;
+    std::function<bool(std::vector<double>, std::vector<solution_t>)> 
+      term_condition = [&](auto pop_fit,auto pop) {
+        i++;
+        return i < iterations;
+    };
+
+/// run the full review method
+    auto calculation_start = chrono::steady_clock::now();
+    solution_t best_solution = calculate_genetic_algorithm<solution_t>(init_population,
+                               fitness_function,
+                               selection_tournament,
+                               crossover,
+                               mutation,
+                               term_condition,
+                               show_progress);
+    auto calculation_end = chrono::steady_clock::now();
+/// show the result
+    chrono::duration<double> calculation_duration = calculation_end-calculation_start;
+    return {best_solution, calculation_duration};
+}
+
 
 
 
@@ -264,6 +322,11 @@ int main(int argc, char** argv)
     auto method = arg(argc, argv, "method", std::string("tabu"));
     auto tabu_size = arg(argc, argv, "tabu_size", 100);
     auto dot =  arg(argc, argv, "dot", false);
+    
+    auto pop_size = arg(argc, argv, "pop_size", 50);
+    auto crossover_p = arg(argc, argv, "crossover_p", 0.9);
+    auto mutation_p = arg(argc, argv, "mutation_p", 0.1);
+
 /// do we need to show some help?
     if (arg(argc, argv, "h", false)) {
         show_help();
@@ -293,6 +356,18 @@ int main(int argc, char** argv)
         calculation_duration = b;
     } else     if (method == "simulated_annealing") {
         auto [a, b] = experiment_simulated_annealing(problem, iterations, show_progress);
+        best_solution = a;
+        calculation_duration = b;
+
+
+        // std::pair<solution_t,std::chrono::duration<double>> experiment_genetic_algorithm(problem_t problem,
+
+    } else if (method == "genetic_algorithm") {
+        auto [a, b] = experiment_genetic_algorithm(problem, iterations,
+        pop_size,
+        crossover_p,
+        mutation_p,
+        show_progress);
         best_solution = a;
         calculation_duration = b;
     } else {

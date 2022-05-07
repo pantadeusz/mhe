@@ -1,5 +1,5 @@
 all:
-	g++ -std=c++17  tsp.cpp global_random.cpp -o tsp -O3
+	g++ -std=c++17  tsp.cpp global_random.cpp -o tsp -ggdb
 
 clean:
 	rm -f tsp
