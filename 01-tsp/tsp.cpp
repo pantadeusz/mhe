@@ -9,6 +9,12 @@
 #include <fstream>
 #include <any>
 #include <chrono>
+#include <random>
+#include <list>
+#include <set>
+
+std::random_device random_device_instance;
+std::mt19937 random_generator(random_device_instance());
 
 
 auto arg = [](int argc, char** argv, std::string name, auto default_value) -> decltype(default_value) {
@@ -130,10 +136,11 @@ problem_t load_problem(std::string fname)
  * @return T the best solution found so far
  */
 template <typename T>
-T calculate_full_review(T start_solution, std::function<double(T)> cost, std::function<T(T)> next_solution, std::function<bool(T)> term_condition, bool progress=false ) {
+T calculate_full_review(T start_solution, std::function<double(T)> cost,
+                        std::function<T(T)> next_solution, std::function<bool(T)> term_condition, bool progress=false ) {
     using namespace std;
     auto solution = start_solution;
-    auto  best_solution = solution;
+    auto best_solution = solution;
     int iteration_counter = 0;
     do {
         if ((cost(solution) < cost(best_solution)) || (iteration_counter == 0)) {
@@ -148,6 +155,86 @@ T calculate_full_review(T start_solution, std::function<double(T)> cost, std::fu
     return best_solution;
 }
 
+template <typename T>
+T calculate_tabu(T start_solution,
+                 std::function<double(T)> cost,
+                 std::function<std::vector<T>(T)> get_neighbors,
+                 std::function<bool(T)> term_condition,
+                 int max_tabu_size = 100,
+                 bool progress=false ) {
+    using namespace std;
+    auto solution = start_solution;
+    auto best_solution = solution;
+    std::list<T> tabu_list;
+    std::set<T> tabu_set;
+    int iteration_counter = 0;
+    auto is_not_in_tabu = [&](T s) -> bool {
+        return tabu_set.count(s) == 0;
+    };
+
+    do {
+        auto neighbors = get_neighbors(solution);
+        vector<T> good_neighbors;
+        copy_if (neighbors.begin(), neighbors.end(), std::back_inserter(good_neighbors), is_not_in_tabu);
+        if (good_neighbors.size() == 0) {
+            cerr << "empty list..." << endl;
+            break;
+        }
+        solution = *min_element(good_neighbors.begin(), good_neighbors.end(), [&](auto a, auto b) -> int {
+            return (cost(a) < cost(b)) ;
+        });
+        tabu_list.push_back(solution);
+        tabu_set.insert(solution);
+        if (tabu_list.size() > max_tabu_size) {
+            tabu_set.erase(tabu_list.front());
+            tabu_list.pop_front();
+        }
+        if ((cost(solution) < cost(best_solution)) || (iteration_counter == 0)) {
+            if (progress) cout << (iteration_counter-1) << " " << cost(best_solution) << " # " << solution << endl;
+            best_solution = solution;
+            if (progress) cout << iteration_counter << " " << cost(best_solution) << " # " << solution << endl;
+        }
+        iteration_counter++;
+    } while (term_condition(solution));
+    if (progress) cout << iteration_counter << " " << cost(best_solution) << " # " << solution << endl;
+    return best_solution;
+}
+
+
+
+
+template <typename T>
+T calculate_simulated_annealing(T start_solution, 
+    std::function<double(T)> cost,
+    std::function<T(T)> next_solution,
+    std::function<double(int)> temperature, 
+    std::function<bool(T)> term_condition, 
+    bool progress=false ) {
+    using namespace std;
+    auto solution = start_solution;
+    auto best_solution = solution;
+    int iteration_counter = 1;
+    do {
+        auto neighbor = next_solution(solution);
+        if (cost(neighbor) < cost(solution)) {
+            solution = neighbor;
+        } else {
+            uniform_real_distribution<double> u(0,1);
+            if (u(random_generator) < exp(-abs(cost(solution)-cost(neighbor))/temperature(iteration_counter))) {
+                solution = neighbor;
+            }
+        }
+        if (cost(solution) < cost(best_solution)) best_solution = solution;
+        iteration_counter++;
+        if (progress) cout << iteration_counter << " " << cost(solution) <<  " " << cost(best_solution) << " # SOL: " << solution << endl;
+        
+    } while (term_condition(solution));
+    if (progress) cout << iteration_counter << " " << cost(best_solution) << " # " << solution << endl;
+    return best_solution;
+}
+
+
+
 void show_help() {
 #ifndef __OPTIMIZE__
 #define OPTIMIZED "optimized "
@@ -157,29 +244,10 @@ void show_help() {
     std::cout << "# " << OPTIMIZED << "binary with date: " << __TIME__ << " " << __DATE__ << std::endl;
     std::cout << "-fname filename" << std::endl;
     std::cout << "-show_progress true/false" << std::endl;
-
 }
 
-int main(int argc, char** argv)
-{
+std::pair<solution_t,std::chrono::duration<double>> experiment_full_revision(problem_t problem, bool show_progress) {
     using namespace std;
-
-/// get arguments
-    auto fname = arg(argc, argv, "fname", std::string(""));
-    auto show_progress = arg(argc, argv, "show_progress", false);
-/// do we need to show some help?
-    if (arg(argc, argv, "h", false)) {
-        show_help();
-        return 0;
-    }
-    cout << "# fname = " << fname << ";" << std::endl;
-
-/// load the problem at hand
-    auto problem = load_problem(fname);
-    for (auto p : problem) {
-        cout << "# P: " << p[0] << " " << p[1] << endl;
-    }
-
 /// generate initial solution
     solution_t solution;
     for (int i = 0; i < problem.size(); i++) {
@@ -207,7 +275,243 @@ int main(int argc, char** argv)
     auto calculation_end = chrono::steady_clock::now();
 /// show the result
     chrono::duration<double> calculation_duration = calculation_end-calculation_start;
-    cout << "# best_cost: " << tsp_problem_cost_function(problem, best_solution) << " calculation_time: " << calculation_duration.count() << endl;
+    return {best_solution, calculation_duration};
+}
+
+solution_t generate_random_solution(problem_t problem) {
+    solution_t solution;
+    for (int i = 0; i < problem.size(); i++) {
+        solution.push_back(i);
+    }
+
+    std::shuffle(solution.begin(), solution.end(), random_generator);
+
+    return solution;
+}
+
+
+std::pair<solution_t,std::chrono::duration<double>> experiment_random_probe(problem_t problem,
+int iterations, bool show_progress) {
+    using namespace std;
+/// generate initial solution
+    solution_t solution = generate_random_solution(problem);
+
+/// prepare important functions:
+/// goal function for solution - how good or bad it is. We minimize this function
+    function<double(solution_t)> goal = [problem](auto s) {
+        return tsp_problem_cost_function(problem, s);
+    };
+/// generate next solution for the method
+    function<solution_t(solution_t)> next_solution = [problem](auto s) {
+        return generate_random_solution(problem);
+    };
+/// what is the termination condition
+    int i = 0;
+    function<bool(solution_t)> term_condition = [&](auto s) {
+        i++;
+        return i < iterations;
+    };
+/// run the full review method
+    auto calculation_start = chrono::steady_clock::now();
+    solution_t best_solution = calculate_full_review<solution_t>(solution,
+                               goal,next_solution,
+                               term_condition, show_progress);
+    auto calculation_end = chrono::steady_clock::now();
+/// show the result
+    chrono::duration<double> calculation_duration = calculation_end-calculation_start;
+    return {best_solution, calculation_duration};
+}
+
+std::pair<solution_t,std::chrono::duration<double>> experiment_random_hillclimb(problem_t problem,
+int iterations, bool show_progress) {
+    using namespace std;
+/// generate initial solution
+    solution_t solution = generate_random_solution(problem);
+
+/// prepare important functions:
+/// goal function for solution - how good or bad it is. We minimize this function
+    function<double(solution_t)> goal = [problem](auto s) {
+        return tsp_problem_cost_function(problem, s);
+    };
+/// generate next solution for the method
+    function<solution_t(solution_t)> next_solution = [problem](auto s) {
+        uniform_int_distribution<int> distr(0,problem.size()-1);
+        int a = distr(random_generator);
+        int b = distr(random_generator);
+        swap(s[a], s[b]);
+        return s;
+    };
+/// what is the termination condition
+    int i = 0;
+    function<bool(solution_t)> term_condition = [&](auto s) {
+        i++;
+        return i < iterations;
+    };
+/// run the full review method
+    auto calculation_start = chrono::steady_clock::now();
+    solution_t best_solution = calculate_full_review<solution_t>(solution,
+                               goal,next_solution,
+                               term_condition, show_progress);
+    auto calculation_end = chrono::steady_clock::now();
+/// show the result
+    chrono::duration<double> calculation_duration = calculation_end-calculation_start;
+    return {best_solution, calculation_duration};
+}
+
+std::pair<solution_t,std::chrono::duration<double>> experiment_tabu(problem_t problem,
+int iterations, int max_tabu_size, bool show_progress) {
+    using namespace std;
+/// generate initial solution
+    solution_t solution = generate_random_solution(problem);
+
+/// prepare important functions:
+/// goal function for solution - how good or bad it is. We minimize this function
+    function<double(solution_t)> goal = [problem](auto s) {
+        return tsp_problem_cost_function(problem, s);
+    };
+/// generate next solution for the method
+    function<vector<solution_t>(solution_t)> get_neighbors = [problem](auto s) -> vector<solution_t> {
+        vector<solution_t> n;
+        for (int i = 0; i < s.size(); i++) {
+            auto tmp = s;
+            swap(tmp[i], tmp[(i+1) % s.size()]);
+            n.push_back(tmp);
+        }
+        return n;
+    };
+/// what is the termination condition
+    int i = 0;
+    function<bool(solution_t)> term_condition = [&](auto s) {
+        i++;
+        return i < iterations;
+    };
+/// run the full review method
+    auto calculation_start = chrono::steady_clock::now();
+    solution_t best_solution = calculate_tabu<solution_t>(solution,
+                               goal,get_neighbors,
+                               term_condition, max_tabu_size, show_progress);
+    auto calculation_end = chrono::steady_clock::now();
+/// show the result
+    chrono::duration<double> calculation_duration = calculation_end-calculation_start;
+    return {best_solution, calculation_duration};
+}
+
+
+std::pair<solution_t,std::chrono::duration<double>> experiment_simulated_annealing(problem_t problem,
+int iterations,
+bool show_progress) {
+    using namespace std;
+/// generate initial solution
+    solution_t solution = generate_random_solution(problem);
+
+/// prepare important functions:
+/// goal function for solution - how good or bad it is. We minimize this function
+    function<double(solution_t)> goal = [problem](auto s) {
+        return tsp_problem_cost_function(problem, s);
+    };
+/// generate next solution for the method
+    function<solution_t(solution_t)> next_solution = [problem](auto s) {
+        uniform_int_distribution<int> distr(0,problem.size()-1);
+        int a = distr(random_generator);
+        int b = distr(random_generator);
+        swap(s[a], s[b]);
+        return s;
+    };
+/// what is the termination condition
+    int i = 0;
+    function<bool(solution_t)> term_condition = [&](auto s) {
+        i++;
+        return i < iterations;
+    };
+
+    function<double(int)> temperature = [](int t){
+        return 1000/t;
+    };
+/// run the full review method
+    auto calculation_start = chrono::steady_clock::now();
+    solution_t best_solution = calculate_simulated_annealing<solution_t>(solution,
+                               goal,next_solution,
+                               temperature,
+                               term_condition,
+                                show_progress);
+    auto calculation_end = chrono::steady_clock::now();
+/// show the result
+    chrono::duration<double> calculation_duration = calculation_end-calculation_start;
+    return {best_solution, calculation_duration};
+}
+
+std::string vis(solution_t sol, problem_t problem) {
+    using namespace std;
+    /*
+    graph G {
+    A [ pos = "0,0!"]
+    B [ pos = "10,10!"]
+    A -- B
+    C -- A
+    }
+    */
+    stringstream out;
+    out << "graph G {" << endl;
+    int num = 0;
+    for (auto [x,y] : problem) {
+        out << num << " [ pos = \"" << x << "," << y << "!\" ] " << endl;
+        num ++;
+    }
+    for (int i = 0; i < sol.size(); i ++) {
+        out << sol[i] << " -- " << sol[(i+1)%sol.size()] << endl;
+    }
+
+    out << "}" << endl;
+    return out.str();
+}
+
+int main(int argc, char** argv)
+{
+    using namespace std;
+
+/// get arguments
+    auto fname = arg(argc, argv, "fname", std::string(""));
+    auto show_progress = arg(argc, argv, "show_progress", false);
+    auto iterations = arg(argc, argv, "iterations", 1000);
+    auto method = arg(argc, argv, "method", std::string("tabu"));
+    auto tabu_size = arg(argc, argv, "tabu_size", 100);
+    auto dot =  arg(argc, argv, "dot", false);
+/// do we need to show some help?
+    if (arg(argc, argv, "h", false)) {
+        show_help();
+        return 0;
+    }
+    cout << "# fname = " << fname << ";" << std::endl;
+
+/// load the problem at hand
+    auto problem = load_problem(fname);
+    solution_t best_solution;
+    std::chrono::duration<double> calculation_duration;
+    if (method == "full_revision") {
+        auto [a, b] = experiment_full_revision(problem, show_progress);
+        best_solution = a;
+        calculation_duration = b;
+    } else     if (method == "random_probe") {
+        auto [a, b] = experiment_random_probe(problem, iterations, show_progress);
+        best_solution = a;
+        calculation_duration = b;
+    } else     if (method == "random_hillclimb") {
+        auto [a, b] = experiment_random_hillclimb(problem, iterations, show_progress);
+        best_solution = a;
+        calculation_duration = b;
+    } else     if (method == "tabu") {
+        auto [a, b] = experiment_tabu(problem, iterations, tabu_size, show_progress);
+        best_solution = a;
+        calculation_duration = b;
+    } else     if (method == "simulated_annealing") {
+        auto [a, b] = experiment_simulated_annealing(problem, iterations, show_progress);
+        best_solution = a;
+        calculation_duration = b;
+    } else {
+        std::cerr << "unknown method" << std::endl;
+    }
+    cout << "# " << method << ": best_cost: " << tsp_problem_cost_function(problem, best_solution) << " calculation_time: " << calculation_duration.count() << endl;
     cout << "# solution: " << best_solution << endl;
+    if (dot) cout << vis(best_solution, problem);
     return 0;
 }
