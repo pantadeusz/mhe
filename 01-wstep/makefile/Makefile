@@ -12,7 +12,7 @@ $(APPNAME): $(OBJS)
 
 %.o : %.c
 	@echo $<
-	@gcc $(LIBS) -c $<
+	$(CPP) $(LIBS) -c $<
 
 clean:
 	rm -f $(OBJS) $(APPNAME)
