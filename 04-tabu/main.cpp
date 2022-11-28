@@ -11,6 +11,9 @@
 
 #include "tp_args.hpp"
 
+std::random_device rd;
+std::mt19937 mt(rd());
+
 struct puzzle_t {
   int width;
   int height;
@@ -58,6 +61,8 @@ struct puzzle_t {
 
   int count_bad_summary_size() const;
   int count_inconsistent(bool show_debug = false) const;
+
+  puzzle_t generate_neighbor_almost_normal() const;
 };
 
 /**
@@ -177,7 +182,6 @@ bool puzzle_t::next_solution() {
   }
   return (i != puzzle.board.size());
 }
-
 std::vector<puzzle_t> puzzle_t::generate_neighbors() const {
   const puzzle_t &p = *this;
   std::vector<puzzle_t> neighbors;
@@ -191,11 +195,27 @@ std::vector<puzzle_t> puzzle_t::generate_neighbors() const {
   return neighbors;
 }
 
-puzzle_t puzzle_t::generate_random_solution() const {
-  const puzzle_t &p = *this;
+puzzle_t puzzle_t::generate_neighbor_almost_normal() const {
   using namespace std;
   static random_device rd;
   static mt19937 mt(rd());
+  const puzzle_t &p = *this;
+  std::normal_distribution norm;
+  std::uniform_int_distribution<int> int_distr(0, p.board.size() - 1);
+  double how_may_change = norm(mt);
+  auto new_board = p;
+  for (int i = 0; i <= how_may_change; i++) {
+    int n = int_distr(mt);
+    if (new_board.board[n] <= 0) new_board.board[n] = -1 - new_board.board[n];
+  }
+
+  return new_board;
+}
+
+puzzle_t puzzle_t::generate_random_solution() const {
+  const puzzle_t &p = *this;
+  using namespace std;
+
   uniform_int_distribution<int> distr(-1, 0);
   puzzle_t rand_sol = p;
   for (int i = 0; i < p.board.size(); i++) {
@@ -302,6 +322,31 @@ puzzle_t random_probe(const puzzle_t &puzzle0, int iterations,
   return best_so_far;
 }
 
+puzzle_t annealing(const puzzle_t &puzzle, int iterations,
+                   bool show_progress = false,
+                   std::function<double(int)> T = [](int k){return 1000.0/(k+1);}) {
+  using namespace std;
+  auto s = puzzle.generate_random_solution();
+  auto best_so_far = s;
+  cerr << "annealing..." << endl;
+  for (int k = 0; k < iterations; k++) {
+    if (show_progress)
+      cout << k << " " << evaluate(s) << " " << evaluate(best_so_far) << endl;
+    auto t = s.generate_neighbor_almost_normal();
+    if (evaluate(t) < evaluate(s)) {
+      s = t;
+      if (evaluate(s) < evaluate(best_so_far)) best_so_far = s;
+    } else {
+        uniform_real_distribution<double> u(0.0,1.0);
+        double v = exp(-abs(evaluate(t) - evaluate(s))/T(k));
+        if (u(mt) < v) {
+            s = t;
+        }
+    }
+  }
+  return best_so_far;
+}
+
 int main(int argc, char **argv) {
   using namespace std;
   using namespace tp::args;
@@ -311,24 +356,32 @@ int main(int argc, char **argv) {
                              0, 0, 0,  0, 0, 3, 0, 6, 4, 0, 0, 0, 0, 0, 0}};
   auto puzzle = puzzle1;
 
-// Arguments handling
+  // Arguments handling
   auto help = arg(argc, argv, "help", false);
-  auto method = arg( argc, argv, "method", std::string("tabu_search"), "Opt. method. Available are: brute_force tabu_search random_probe hill_climb_det." );
-  auto iterations = arg(argc, argv, "iterations", 100, "Maximal number of iterations.");
+  auto method = arg(argc, argv, "method", std::string("tabu_search"),
+                    "Opt. method. Available are: brute_force tabu_search "
+                    "random_probe hill_climb_det.");
+  auto iterations =
+      arg(argc, argv, "iterations", 100, "Maximal number of iterations.");
   auto do_chart = arg(argc, argv, "do_chart", false, "Show chart.");
-  auto print_input = arg(argc, argv, "print_input", false, "Show what is the input problem.");
-  auto print_result = arg(argc, argv, "print_result", false, "Show the result.");
-  auto print_result_eval = arg(argc, argv, "print_result_eval", false, "Show the evaluation result.");
-  if ( help ) {
-        std::cout << "help screen.." << std::endl;
-        args_info( std::cout );
-        return 0;
-    }
+  auto print_input =
+      arg(argc, argv, "print_input", false, "Show what is the input problem.");
+  auto print_result =
+      arg(argc, argv, "print_result", false, "Show the result.");
+  auto print_result_eval = arg(argc, argv, "print_result_eval", false,
+                               "Show the evaluation result.");
+  if (help) {
+    std::cout << "help screen.." << std::endl;
+    args_info(std::cout);
+    return 0;
+  }
   map<string, function<puzzle_t(puzzle_t, int, bool)>> methods = {
       {"brute_force", brute_force},
       {"random_probe", random_probe},
       {"hill_climb_det", hill_climb_det},
-      {"tabu_search", tabu_search}};
+      {"tabu_search", tabu_search},
+      {"annealing", [](puzzle_t p, int n, bool d){return annealing(p,n,d);}}
+      };
 
   if (print_input) cout << puzzle << endl;
   puzzle_t result = methods.at(method)(puzzle, iterations, do_chart);
