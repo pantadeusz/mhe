@@ -311,11 +311,6 @@ int main(int argc, char **argv) {
                              0, 0, 0,  0, 0, 3, 0, 6, 4, 0, 0, 0, 0, 0, 0}};
   auto puzzle = puzzle1;
 
-  //    cout << puzzle << endl;
-  // string method = "brute_force";
-  // string method = "tabu_search";
-  // string method = "random_probe";
-  // string method = "hill_climb_det";
   auto help = arg(argc, argv, "help", false);
  
   auto method = arg( argc, argv, "method", std::string("tabu_search"), "Opt. method. Available are: brute_force tabu_search random_probe hill_climb_det." );
