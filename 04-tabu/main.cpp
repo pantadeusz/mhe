@@ -272,7 +272,7 @@ puzzle_t brute_force(const puzzle_t &puzzle_z, int iterations,
   while (puzzle.next_solution()) {
     if (show_progress) cout << n << " " << evaluate(best_so_far) << endl;
     if (n >= iterations) {
-      cerr << "broken brute-force " << endl;
+      // cerr << "broken brute-force " << endl;
       break;
     }
     if (evaluate(puzzle) == 0) {
@@ -311,8 +311,8 @@ int main(int argc, char **argv) {
                              0, 0, 0,  0, 0, 3, 0, 6, 4, 0, 0, 0, 0, 0, 0}};
   auto puzzle = puzzle1;
 
+// Arguments handling
   auto help = arg(argc, argv, "help", false);
- 
   auto method = arg( argc, argv, "method", std::string("tabu_search"), "Opt. method. Available are: brute_force tabu_search random_probe hill_climb_det." );
   auto iterations = arg(argc, argv, "iterations", 100, "Maximal number of iterations.");
   auto do_chart = arg(argc, argv, "do_chart", false, "Show chart.");
