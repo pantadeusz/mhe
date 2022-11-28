@@ -205,13 +205,13 @@ puzzle_t puzzle_t::generate_random_solution() const {
   return rand_sol;
 }
 
-puzzle_t hill_climb_det(puzzle_t puzzle, int iterations,
+puzzle_t hill_climb_det(const puzzle_t &puzzle, int iterations,
                         bool show_progress = false) {
   using namespace std;
   auto best_so_far = puzzle.generate_random_solution();
   for (int n = 0; n < iterations; n++) {
     if (show_progress) cout << n << " " << evaluate(best_so_far) << endl;
-    auto neighbors = puzzle.generate_neighbors();
+    auto neighbors = best_so_far.generate_neighbors();
     neighbors.push_back(best_so_far);
     best_so_far = *std::min_element(
         neighbors.begin(), neighbors.end(),
