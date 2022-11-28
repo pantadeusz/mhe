@@ -9,6 +9,8 @@
 #include <set>
 #include <vector>
 
+#include "tp_args.hpp"
+
 struct puzzle_t {
   int width;
   int height;
@@ -229,7 +231,7 @@ bool operator==(puzzle_t l, puzzle_t r) {
   return true;
 }
 
-puzzle_t tabu_search(puzzle_t puzzle, int iterations,
+puzzle_t tabu_search(const puzzle_t &puzzle, int iterations,
                      bool show_progress = false) {
   using namespace std;
   const int tabu_size = 1000;
@@ -261,10 +263,11 @@ puzzle_t tabu_search(puzzle_t puzzle, int iterations,
   return best_so_far;
 }
 
-puzzle_t brute_force(puzzle_t puzzle, int iterations,
+puzzle_t brute_force(const puzzle_t &puzzle_z, int iterations,
                      bool show_progress = false) {
   using namespace std;
   int n = 0;
+  puzzle_t puzzle = puzzle_z;
   auto best_so_far = puzzle;
   while (puzzle.next_solution()) {
     if (show_progress) cout << n << " " << evaluate(best_so_far) << endl;
@@ -284,9 +287,10 @@ puzzle_t brute_force(puzzle_t puzzle, int iterations,
   return best_so_far;
 }
 
-puzzle_t random_probe(puzzle_t puzzle, int iterations,
+puzzle_t random_probe(const puzzle_t &puzzle0, int iterations,
                       bool show_progress = false) {
   using namespace std;
+  puzzle_t puzzle = puzzle0;
   auto best_so_far = puzzle;
   for (int n = 0; n < iterations; n++) {
     if (show_progress) cout << n << " " << evaluate(best_so_far) << endl;
@@ -300,6 +304,7 @@ puzzle_t random_probe(puzzle_t puzzle, int iterations,
 
 int main(int argc, char **argv) {
   using namespace std;
+  using namespace tp::args;
   puzzle_t puzzle0 = {4, 4, {0, 0, 0, 3, 0, 4, -1, 0, 5, 0, 6, 0, 0, 0, 0, 2}};
   puzzle_t puzzle1 = {7, 7, {0, 0, 0,  0, 0, 0, 3, 2, 0, 3, 0, 0, 0, 0, 0, 0, 0,
                              0, 7, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 2, 0, 0, 0,
@@ -311,12 +316,19 @@ int main(int argc, char **argv) {
   // string method = "tabu_search";
   // string method = "random_probe";
   // string method = "hill_climb_det";
-  string method = argv[1];
-  int iterations = stoi(argv[2]);
-  bool do_chart = std::string(argv[3]) == "true";
-  bool print_input = std::string(argv[4]) == "true";
-  bool print_result = std::string(argv[5]) == "true";
-  bool print_result_eval = std::string(argv[6]) == "true";
+  auto help = arg(argc, argv, "help", false);
+ 
+  auto method = arg( argc, argv, "method", std::string("tabu_search"), "Opt. method. Available are: brute_force tabu_search random_probe hill_climb_det." );
+  auto iterations = arg(argc, argv, "iterations", 100, "Maximal number of iterations.");
+  auto do_chart = arg(argc, argv, "do_chart", false, "Show chart.");
+  auto print_input = arg(argc, argv, "print_input", false, "Show what is the input problem.");
+  auto print_result = arg(argc, argv, "print_result", false, "Show the result.");
+  auto print_result_eval = arg(argc, argv, "print_result_eval", false, "Show the evaluation result.");
+  if ( help ) {
+        std::cout << "help screen.." << std::endl;
+        args_info( std::cout );
+        return 0;
+    }
   map<string, function<puzzle_t(puzzle_t, int, bool)>> methods = {
       {"brute_force", brute_force},
       {"random_probe", random_probe},
