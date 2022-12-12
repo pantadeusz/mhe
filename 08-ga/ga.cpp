@@ -171,24 +171,21 @@ std::vector<solution_t> crossover(const std::vector<solution_t>& solutions)
         taken_cities[1][offspring[1][i]] = offspring[0][i];
     }
 
-    for (auto &[k, v] : taken_cities[0])
+    for (auto& [k, v] : taken_cities[0])
         cout << k << "--" << v << std::endl;
     std::cout << std::endl;
-    for (auto &[k, v] : taken_cities[1])
-       cout << k << "--" << v << std::endl;
-    for (int i = 0; i < solutions[0].size(); i++) {
-        if (i == cuts[0]) {
-            i = cuts[1] - 1;
-            continue;
-        }
-        for (int v = 0; v < 2; v++)
-            if (taken_cities[v].count(offspring[v][i])) {
-                offspring[v][i] = taken_cities[v].at(offspring[v][i]);
-                if (taken_cities[v].count(offspring[v][i])) {
-                    cout << "UWAGA" << endl;
-                }
+    for (auto& [k, v] : taken_cities[1])
+        cout << k << "--" << v << std::endl;
+    for (int v = 0; v < 2; v++)
+        for (int i = 0; i < solutions[0].size(); i++) {
+            if (i == cuts[0]) {
+                i = cuts[1] - 1;
+                continue;
             }
-    }
+            while (taken_cities[v].count(offspring[v][i])) {
+                offspring[v][i] = taken_cities[v].at(offspring[v][i]);
+            }
+        }
     return offspring;
 }
 
