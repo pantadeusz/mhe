@@ -36,7 +36,7 @@ std::string utc(const std::time_t time)
 }
 
 std::ostream& operator<<(std::ostream& o, const solution_t& solution)
-{ /*
+{
     std::time_t time = std::time({});
     o << R"(<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <gpx xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" creator="Oregon 400t" version="1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.garmin.com/xmlschemas/GpxExtensions/v3 http://www.garmin.com/xmlschemas/GpxExtensionsv3.xsd http://www.garmin.com/xmlschemas/TrackPointExtension/v1 http://www.garmin.com/xmlschemas/TrackPointExtensionv1.xsd">
@@ -59,7 +59,11 @@ std::ostream& operator<<(std::ostream& o, const solution_t& solution)
     o << R"(</trkseg>
   </trk>
 </gpx>
-    )"; */
+    )";
+    return o;
+}
+std::ostream& operator<<(std::ostream& o, const std::vector<int>& solution)
+{
     for (auto e : solution) {
         o << e << " ";
     }
@@ -194,11 +198,11 @@ int main(int argc, char** argv)
     std::vector<solution_t> parents = {
         dummy_solution_for_problem(create_random_problem(10)),
         dummy_solution_for_problem(create_random_problem(10))};
-    std::cout << parents[0] << std::endl;
-    std::cout << parents[1] << std::endl;
+    std::cout << (std::vector<int>&)parents[0] << std::endl;
+    std::cout << (std::vector<int>&)parents[1] << std::endl;
     auto offspring = crossover(parents);
-    std::cout << offspring[0] << std::endl;
-    std::cout << offspring[1] << std::endl;
+    std::cout << (std::vector<int>&)offspring[0] << std::endl;
+    std::cout << (std::vector<int>&)offspring[1] << std::endl;
 
     return 0;
 }
