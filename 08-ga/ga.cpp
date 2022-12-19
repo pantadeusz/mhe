@@ -52,6 +52,13 @@ std::ostream& operator<<(std::ostream& o, const solution_t& solution)
   <trk>
     <name>TSP Track</name>
     <trkseg>)";
+    if (solution.size() > 0) {
+        auto sol_element = solution.back();
+        o << "<trkpt lat=\"" << solution.problem_p->at(sol_element).coordinates[0] << "\" lon=\"" << solution.problem_p->at(sol_element).coordinates[1] << "\">\n";
+        o << "<ele>200</ele>\n";
+        o << "<time>" << utc(time) << "</time>\n";
+        o << "</trkpt>\n";
+    }
     for (auto sol_element : solution) {
         o << "<trkpt lat=\"" << solution.problem_p->at(sol_element).coordinates[0] << "\" lon=\"" << solution.problem_p->at(sol_element).coordinates[1] << "\">\n";
         o << "<ele>200</ele>\n";
@@ -163,8 +170,8 @@ std::vector<solution_t> crossover(const std::vector<solution_t>& solutions)
     using namespace std;
     std::vector<solution_t> offspring = solutions;
     uniform_int_distribution<int> distr(0, solutions[0].size() - 1);
-    //int cuts[2] = {distr(rd_generator), distr(rd_generator)};
-    int cuts[2] = {2, 5}; /// TODO: FIX
+    int cuts[2] = {distr(rd_generator), distr(rd_generator)};
+    if (cuts[0] == cuts[1]) return solutions;
     if (cuts[0] > cuts[1]) swap(cuts[0], cuts[1]);
 
     map<int, int> taken_cities[2];
@@ -174,6 +181,7 @@ std::vector<solution_t> crossover(const std::vector<solution_t>& solutions)
         taken_cities[0][offspring[0][i]] = offspring[1][i];
         taken_cities[1][offspring[1][i]] = offspring[0][i];
     }
+    std::cout << "cuts: " << cuts[0] << " " << cuts[1] << std::endl;
     for (int v = 0; v < 2; v++)
         for (int i = 0; i < solutions[0].size(); i++) {
             if (i == cuts[0]) {
