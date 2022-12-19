@@ -95,7 +95,7 @@ std::istream& operator>>(std::istream& o, problem_t& problem)
     return o;
 }
 
-solution_t dummy_solution_for_problem(problem_t p)
+solution_t random_solution_for_problem(problem_t p)
 {
     solution_t solution;
     solution.problem_p = std::make_shared<problem_t>();
@@ -181,7 +181,6 @@ std::vector<solution_t> crossover(const std::vector<solution_t>& solutions)
         taken_cities[0][offspring[0][i]] = offspring[1][i];
         taken_cities[1][offspring[1][i]] = offspring[0][i];
     }
-    std::cout << "cuts: " << cuts[0] << " " << cuts[1] << std::endl;
     for (int v = 0; v < 2; v++)
         for (int i = 0; i < solutions[0].size(); i++) {
             if (i == cuts[0]) {
@@ -207,22 +206,71 @@ problem_t load_problem(std::string fname)
     }
     throw std::invalid_argument("could not open file " + fname);
 }
+
+std::vector<int> selection(std::vector<double> pop_fit)
+{
+    std::uniform_int_distribution<int> distr(0, pop_fit.size() - 1);
+    std::vector<int> ret;
+    while (ret.size() < pop_fit.size()) {
+        int a = distr(rd_generator), b = distr(rd_generator);
+        ret.push_back((pop_fit[a] < pop_fit[b]) ? pop_fit[a] : pop_fit[b]);
+    }
+    return ret;
+}
+
+auto print_population = [](auto results) {
+    for (auto e : results)
+        std::cout << (std::vector<int>&)e << "    : " << fitness(e) << std::endl;
+};
+
+/**
+ * @brief Sepcialized genetic algorithm for TSP problem.
+ * 
+ * It assumes, that there is fitness function that works on the type solution_t
+ * 
+ * @return std::vector<solution_t> 
+ */
+template <typename PROBLEM = problem_t, typename SOLUTION = solution_t>
+std::vector<SOLUTION> genetic_algorithm(PROBLEM problem, int pop_size, int iterations, double p_crossover, double p_mutation)
+{
+    std::vector<SOLUTION> initial_population(pop_size);
+    std::generate(initial_population.begin(), initial_population.end(), [&]() { return random_solution_for_problem(problem); });
+
+    std::vector<SOLUTION> population = initial_population;
+    std::sort(population.begin(), population.end(), [](auto a, auto b) { return fitness(a) > fitness(b); });
+    print_population(population);
+    for (int iteration = 0; iteration < iterations; iteration++) {
+        std::vector<double> fitnesses(pop_size);
+        std::transform(population.begin(), population.end(), fitnesses.begin(), [&](auto e) { return fitness(e); });
+        auto selected = selection(fitnesses);
+        std::vector<SOLUTION> new_population;
+        for (int i = 0; i < (pop_size - 1); i += 2) {
+            std::uniform_real_distribution<double> distr(0.0, 1.0);
+            std::vector<SOLUTION> c = {population.at(selected.at(i)),
+                population.at(selected.at(i + 1))};
+            if (distr(rd_generator) > p_crossover) {
+                c = crossover(c);
+            }
+            for (auto& e : c) {
+                if (distr(rd_generator) > p_mutation)
+                    e = mutation(e);
+            }
+            new_population.push_back(c.at(0));
+            new_population.push_back(c.at(1));
+        }
+        population = new_population;
+    }
+    std::cout << std::endl;
+    std::sort(population.begin(), population.end(), [](auto a, auto b) { return fitness(a) > fitness(b); });
+    print_population(population);
+    return population;
+}
+
 int main(int argc, char** argv)
 {
-    //    problem_t problem;
-    //    std::cin >> problem;
-    //    auto solution = dummy_solution_for_problem(problem);
-    //    std::cout << solution;
     problem_t problem = load_problem("cities1.txt");
-    std::vector<solution_t> parents = {
-        dummy_solution_for_problem(problem),
-        dummy_solution_for_problem(problem)};
-    std::cout << (std::vector<int>&)parents[0] << std::endl;
-    std::cout << (std::vector<int>&)parents[1] << std::endl;
-    auto offspring = crossover(parents);
-    std::cout << (std::vector<int>&)offspring[0] << "    : " << fitness( offspring[0]) <<std::endl;
-    std::cout << (std::vector<int>&)offspring[1] << "    : " << fitness( offspring[1]) <<std::endl;
+    std::vector<solution_t> results = genetic_algorithm<>(problem, 100, 1000, 0.01, 0.001);
     std::ofstream result_route_file("route.gpx");
-    result_route_file << offspring[0] << std::endl;
+    result_route_file << results.at(0) << std::endl;
     return 0;
 }
