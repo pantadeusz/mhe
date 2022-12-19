@@ -1,7 +1,9 @@
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -13,9 +15,9 @@ std::random_device rd;
 std::mt19937_64 rd_generator(rd());
 
 struct city_t {
-    // {latitude, longitude}
     std::string name;
-    std::vector<double> coordinates;
+    // {latitude, longitude}
+    std::array<double, 2> coordinates;
 };
 
 using problem_t = std::vector<city_t>;
@@ -71,7 +73,6 @@ std::ostream& operator<<(std::ostream& o, const std::vector<int>& solution)
 }
 std::istream& operator>>(std::istream& o, city_t& city)
 {
-    city.coordinates.resize(2);
     o >> city.name >> city.coordinates[0] >> city.coordinates[1];
     return o;
 }
@@ -111,22 +112,21 @@ problem_t create_random_problem(int n)
 }
 
 
-std::vector<double> operator*(const std::vector<double> a, const double b)
+std::array<double, 2> operator*(const std::array<double, 2> a, const double b)
 {
-    std::vector<double> result = a;
+    std::array<double, 2> result = a;
     for (auto& x : result)
         x = x * b;
     return result;
 }
-std::vector<double> operator+(const std::vector<double> a, const std::vector<double> b)
+std::array<double, 2> operator+(const std::array<double, 2> a, const std::array<double, 2> b)
 {
-    assert(a.size() == b.size());
-    std::vector<double> result = a;
+    std::array<double, 2> result = a;
     for (int i = 0; i < b.size(); i++)
         result[i] += b.at(i);
     return result;
 }
-std::vector<double> operator-(const std::vector<double> a, const std::vector<double> b)
+std::array<double, 2> operator-(const std::array<double, 2> a, const std::array<double, 2> b)
 {
     return a + (b * -1.0);
 }
@@ -187,22 +187,34 @@ std::vector<solution_t> crossover(const std::vector<solution_t>& solutions)
     return offspring;
 }
 
-
+problem_t load_problem(std::string fname)
+{
+    std::ifstream f(fname);
+    if (f.is_open()) {
+        problem_t problem;
+        while (f >> problem) {
+        }
+        f.close();
+        return problem;
+    }
+    throw std::invalid_argument("could not open file " + fname);
+}
 int main(int argc, char** argv)
 {
     //    problem_t problem;
     //    std::cin >> problem;
     //    auto solution = dummy_solution_for_problem(problem);
     //    std::cout << solution;
-
+    problem_t problem = load_problem("cities1.txt");
     std::vector<solution_t> parents = {
-        dummy_solution_for_problem(create_random_problem(10)),
-        dummy_solution_for_problem(create_random_problem(10))};
+        dummy_solution_for_problem(problem),
+        dummy_solution_for_problem(problem)};
     std::cout << (std::vector<int>&)parents[0] << std::endl;
     std::cout << (std::vector<int>&)parents[1] << std::endl;
     auto offspring = crossover(parents);
-    std::cout << (std::vector<int>&)offspring[0] << std::endl;
-    std::cout << (std::vector<int>&)offspring[1] << std::endl;
-
+    std::cout << (std::vector<int>&)offspring[0] << "    : " << fitness( offspring[0]) <<std::endl;
+    std::cout << (std::vector<int>&)offspring[1] << "    : " << fitness( offspring[1]) <<std::endl;
+    std::ofstream result_route_file("route.gpx");
+    result_route_file << offspring[0] << std::endl;
     return 0;
 }
