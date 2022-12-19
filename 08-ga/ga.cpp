@@ -213,7 +213,7 @@ std::vector<int> selection(std::vector<double> pop_fit)
     std::vector<int> ret;
     while (ret.size() < pop_fit.size()) {
         int a = distr(rd_generator), b = distr(rd_generator);
-        ret.push_back((pop_fit[a] < pop_fit[b]) ? pop_fit[a] : pop_fit[b]);
+        ret.push_back((pop_fit[a] > pop_fit[b]) ? a : b);
     }
     return ret;
 }
@@ -269,7 +269,7 @@ std::vector<SOLUTION> genetic_algorithm(PROBLEM problem, int pop_size, int itera
 int main(int argc, char** argv)
 {
     problem_t problem = load_problem("cities1.txt");
-    std::vector<solution_t> results = genetic_algorithm<>(problem, 100, 1000, 0.01, 0.001);
+    std::vector<solution_t> results = genetic_algorithm<>(problem, 100, 10, 0.01, 0.001);
     std::ofstream result_route_file("route.gpx");
     result_route_file << results.at(0) << std::endl;
     return 0;
