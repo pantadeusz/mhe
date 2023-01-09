@@ -13,6 +13,8 @@
 #include <set>
 #include <vector>
 
+#include "tp_args.hpp"
+
 std::random_device rd;
 std::mt19937_64 rd_generator(rd());
 
@@ -224,7 +226,7 @@ problem_t load_problem(std::string fname)
     return ret;
 } */
 
-std::vector<int> selection(std::vector<double> pop_fit)
+std::vector<int> selection_tournament(std::vector<double> pop_fit)
 {
     std::uniform_int_distribution<int> distr(0, pop_fit.size() - 1);
     std::vector<int> ret;
@@ -257,9 +259,9 @@ std::function<std::vector<int>(std::vector<double>)> selection_elite_factory(std
     return [=](std::vector<double> pop) -> std::vector<int> {
         std::vector<std::pair<int, double>> idx_fitness;
         int i = 0;
-        std::transform(pop.begin(), pop.end(), std::back_inserter(idx_fitness), [&i](auto e) { 
+        std::transform(pop.begin(), pop.end(), std::back_inserter(idx_fitness), [&i](auto e) {
             std::pair<int, double> p = {i++, e};
-            return p; 
+            return p;
         });
         std::sort(idx_fitness.begin(), idx_fitness.end(), [](auto a, auto b) { return a.second > b.second; });
         auto ret = orig_selection(pop);
@@ -293,12 +295,17 @@ std::vector<SOLUTION> genetic_algorithm(PROBLEM problem, int pop_size, int itera
 
     std::vector<SOLUTION> population = initial_population;
     std::sort(population.begin(), population.end(), [](auto a, auto b) { return fitness(a) > fitness(b); });
-    print_population(population);
+    //print_population(population);
     for (int iteration = 0; iteration < iterations; iteration++) {
         std::vector<double> fitnesses(pop_size);
-        std::transform(population.begin(), population.end(), fitnesses.begin(), [&](auto e) { return fitness(e); });
+        int ps = population.size();
+#pragma omp parallel for schedule(static, 1000)
+        for (int i = 0; i < ps; i++)
+            fitnesses[i] = fitness(population[i]);
         auto selected = selection(fitnesses);
-        std::vector<SOLUTION> new_population;
+        std::vector<SOLUTION> new_population(population.size());
+
+#pragma omp parallel for
         for (int i = 0; i < (pop_size - 1); i += 2) {
             std::uniform_real_distribution<double> distr(0.0, 1.0);
             std::vector<SOLUTION> c = {population.at(selected.at(i)),
@@ -310,27 +317,49 @@ std::vector<SOLUTION> genetic_algorithm(PROBLEM problem, int pop_size, int itera
                 if (distr(rd_generator) > p_mutation)
                     e = mutation(e);
             }
-            new_population.push_back(c.at(0));
-            new_population.push_back(c.at(1));
+            //#pragma omp critical
+            // {
+            //     new_population.push_back(c.at(0));
+            //     new_population.push_back(c.at(1));
+            // }
+            new_population[i+0] = c.at(0);
+            new_population[i+1] = c.at(1);
         }
         population = new_population;
     }
     std::cout << std::endl;
     std::sort(population.begin(), population.end(), [](auto a, auto b) { return fitness(a) > fitness(b); });
-    print_population(population);
+    //print_population(population);
     return population;
 }
 
 int main(int argc, char** argv)
 {
-    std::map<std::string,std::function<std::vector<int>(std::vector<double>)>> selections;
-    selections["tournament"] = selection;
+    using namespace tp::args;
+
+    std::map<std::string, std::function<std::vector<int>(std::vector<double>)>> selections;
+    selections["tournament"] = selection_tournament;
     selections["roulette"] = selection_roulette;
-    selections["elite_2_tournament"] = selection_elite_factory(selection,2);
-    selections["elite_2_roulette"] = selection_elite_factory(selection_roulette,2);
-    std::string selection = "tournament";
+    selections["elite_2_tournament"] = selection_elite_factory(selection_tournament, 2);
+    selections["elite_2_roulette"] = selection_elite_factory(selection_roulette, 2);
+
+    auto help = arg(argc, argv, "help", false);
+    std::string selections_list = "Available seletcions";
+    for (auto [k, v] : selections)
+        selections_list += " " + k;
+    auto selection = arg(argc, argv, "selection", std::string("tournament"), selections_list);
+
+    auto pop_size = arg(argc, argv, "pop_size", 2000, "Population size");
+    auto iterations = arg(argc, argv, "iterations", 200, "Iterations count");
+
+    if (help) {
+        std::cout << "Genetic algorithm" << std::endl;
+        args_info(std::cout);
+        return 0;
+    }
+
     problem_t problem = load_problem("cities1.txt");
-    std::vector<solution_t> results = genetic_algorithm<>(problem, 2000, 2000, 0.1, 0.001, selections.at(selection));
+    std::vector<solution_t> results = genetic_algorithm<>(problem, pop_size, iterations, 0.1, 0.001, selections.at(selection));
     std::ofstream result_route_file("route.gpx");
     result_route_file << results.at(0) << std::endl;
     return 0;
