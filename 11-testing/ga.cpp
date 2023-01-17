@@ -332,7 +332,7 @@ std::vector<SOLUTION> genetic_algorithm(PROBLEM problem,
     std::sort(population.begin(), population.end(), [](auto a, auto b) { return fitness(a) > fitness(b); });
     for (int iteration = 0; iteration < config.iterations; iteration++) {
         std::vector<double> fitnesses(config.pop_size);
-#pragma omp parallel for schedule(static, 1000)
+#pragma omp parallel for schedule(static, 100)
         for (int i = 0; i < config.pop_size; i++)
             fitnesses[i] = fitness(population[i]);
         auto selected = config.selection(fitnesses);
@@ -435,7 +435,7 @@ int main(int argc, char** argv)
         std::cout << std::endl;
     }
     if (config.result_filename != "") {
-        std::ofstream result_route_file("route.gpx");
+        std::ofstream result_route_file(config.result_filename);
         result_route_file << results.at(0) << std::endl;
     }
     return 0;
