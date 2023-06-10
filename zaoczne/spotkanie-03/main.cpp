@@ -1,6 +1,7 @@
 #include "tp_args.hpp"
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <list>
@@ -319,6 +320,8 @@ std::ostream& print_solution_for_graphviz(std::ostream& o, const solution_t v)
     return o;
 }
 
+// LANG=C datamash -t' ' --sort --group 1,2,3,4,5 max 6,7,8,9,10 < $SUMMARY_STATISTICS > $MAXIMUMS
+// TODO: LANG=C datamash -t' ' --sort --group 1,2,3,4,5 max 6,7,8,9,10 < $SUMMARY_STATISTICS > $MAXIMUMS
 
 int main(int argc, char** argv)
 {
@@ -328,10 +331,14 @@ int main(int argc, char** argv)
     auto help = arg(argc, argv, "help", false, "help screen");
 
     auto print_dot = arg(argc, argv, "print_dot", false, "show graphviz graph");
+    auto print_solution = arg(argc, argv, "print_solution", false, "show solution");
     auto conv_curve = arg(argc, argv, "conv_curve", 0, "how often show data to convergence curve");
+    auto result_fit = arg(argc, argv, "result_fit", false, "print result fitness");
+    auto count_time = arg(argc, argv, "count_time", false, "print time");
 
     auto problem_size = arg(argc, argv, "problem_size", 30, "the number of cities");
     auto iterations = arg(argc, argv, "iterations", 1000, "iterations count");
+    auto pop_size = arg(argc, argv, "pop_size", 5000, "population size");
     auto p_crossover = arg(argc, argv, "p_crossover", 0.1, "crossover probability");
     auto p_mutation = arg(argc, argv, "p_mutation", 0.1, "mutation probability");
     if (help) {
@@ -342,20 +349,29 @@ int main(int argc, char** argv)
 
     problem_t tsp_problem = generate_problem(problem_size, 10,
         10, rgen); //{{1.3, 1}, {2.4, 1}, {1.5, 2}, {3.1, 1}, {3.2, 7}, {3.3, 9}, {1.4, 4}};
+    
+    std::random_device rd;
+    rgen.seed(rd());
     auto solution = solution_t::random_solution(tsp_problem, rgen);
-    std::cout << tsp_problem << std::endl;
-    std::cout << solution << "Start:  " << solution.goal() << std::endl;
+    //std::cout << tsp_problem << std::endl;
+    //std::cout << solution << "Start:  " << solution.goal() << std::endl;
     //solution = random_hillclimb(solution);
     //solution = brute_force(solution);
     //solution = shortest_distance(solution);
     //solution = deterministic_hillclimb(solution);
     //solution = tabu_search(solution);
     //solution = sim_annealing(solution, [](int k){return 1000.0/k;});
-    tsp_config_t config(iterations, 5000, p_mutation, p_crossover, tsp_problem, rgen);
+    tsp_config_t config(iterations, pop_size, p_mutation, p_crossover, tsp_problem, rgen);
+    auto start = std::chrono::steady_clock::now();
     solution = generic_algorithm<solution_t>(config, conv_curve, rgen);
+    auto end = std::chrono::steady_clock::now();
+    if (count_time) std::cout << (end - start).count() << " ";
 
     //*  { 6 0 3 5 2 1 4 }  30.9289 --  19.3343 // { 6 5 4 3 1 0 2 }  18.1745 -- bruteforce */
-    std::cout << solution << "Result  " << solution.goal() << std::endl;
+    if (print_solution) std::cout << solution << "Result  " << solution.goal() << std::endl;
     if (print_dot) print_solution_for_graphviz(std::cout, solution.start_from_zero());
+    if (result_fit) {
+        std::cout << solution.goal() << std::endl;
+    }
     return 0;
 }

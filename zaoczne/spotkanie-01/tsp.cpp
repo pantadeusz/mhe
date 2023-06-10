@@ -180,6 +180,7 @@ problem_t random_problem(int n, double w, double h) {
     return problem;
 }
 
+
 int main()
 {
     using namespace std;
@@ -196,3 +197,40 @@ int main()
     print_solution_for_graphviz(std::cout, solution.start_from_zero());
     return 0;
 }
+
+
+/*
+
+  auto parent0 =  ....
+  auto parent1 =  ....
+  auto child0 = parent0;
+  auto child1 = parent1;
+  uniform_int_distribution<int> rand_locus(0, parent0.size() - 1);
+  int a = rand_locus(mt_generator);
+  int b = rand_locus(mt_generator);
+  if (a > b) swap(a, b);
+
+  set<int> cities0;
+  set<int> cities1;
+  map<int, int> mappings;
+  for (int i = a; i < b; i++) {
+    swap(child0[i], child1[i]);
+    mappings[child0[i]] = child1[i];
+    mappings[child1[i]] = child0[i];
+    cities0.insert(child0[i]);
+    cities1.insert(child1[i]);
+  }
+  for (int i = 0; i < child0.size(); i++) {
+    if (i >= a && i < b) continue;  // pomijamy cięcia
+    if (cities0.count(child0[i])) {
+      child0[i] = mappings[child0[i]];
+    }
+  }
+  for (int i = 0; i < child1.size(); i++) {
+    if (i >= a && i < b) continue;  // pomijamy cięcia
+    if (cities1.count(child1[i])) {
+      child1[i] = mappings[child1[i]];
+    }
+  }
+
+*/
